@@ -247,3 +247,17 @@ The Adapter region port previously lacked the in-process write fence. It is now 
 | hanaworlds-contracts | 2.3.0 | MIT | https://github.com/yzsnstotz/hanaworlds-contracts/tree/v2.3.0 | C-session/C-canvas validation, region protocols/capabilities and fixture data |
 
 Evidence is SOURCE/FIXTURE with real local Cordis/Core Session/HTTP and the existing U3 carrier test. Real engine writes, installed peer assembly, rendered Shell panels and owner ACCEPTED remain untested here.
+
+# desktop-bridge-plugin-roles-01
+
+Baseline: `80c98f8`. D-5 stays dependency usage of DeepSeek Harness; no upstream modification. As C-world-inspection provider this card published `hanaworlds-contracts` v2.9.0 (additive: `world-inspection/v1 ReadPluginRoles`, world-inspection minor 0 → 1) and pins it exactly. `plugin-roles.ts` reads Cordis's root service store (`ctx.root.reflect.store`: each Impl's `name` and providing `fiber`), the loader's `fiber.entry.options.name` and the host `ctx.skills.snapshot()`; the role mapping itself is the contract's `derivePluginRoles` over its published evidence table. No new service, login, peer import or dependency; the operation rides on the existing `hanaworldsWorldInspectionContext` service and plugin route carrier.
+
+| Name | Version | License | Source | Use |
+| --- | --- | --- | --- | --- |
+| @deepseek-ai/cordis | 4.0.4 | MIT | https://github.com/deepseek-ai/deepseek-harness | Service store and providing fiber per registered service; logger |
+| @deepseek-ai/cordis-plugin-loader (behaviour only, not imported) | as installed by the host | MIT | https://github.com/deepseek-ai/deepseek-harness | `fiber.entry.options.name` = loader module specifier |
+| @deepseek-ai/dsh-skill | 0.2.0-rc.2 | MIT | https://github.com/deepseek-ai/deepseek-harness | Live skill catalog snapshot (`provider`, `complete`) |
+| @deepseek-ai/dsh-host-webserver | 0.2.0-rc.2 | MIT | https://github.com/deepseek-ai/deepseek-harness | Existing authenticated plugin route carrier |
+| hanaworlds-contracts | 2.9.0 | MIT | https://github.com/yzsnstotz/hanaworlds-contracts/tree/v2.9.0 | ReadPluginRoles types, evidence table, derivation, binding validation, fixture |
+
+Evidence is SOURCE/FIXTURE with real local Cordis/HTTP. Tests mount fixture plugins as fibers carrying `fiber.entry`, the field cordis-plugin-loader sets; the real DSH host assembly was not run.

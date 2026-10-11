@@ -46,6 +46,8 @@ await ctx.hanaworldsWorldInspectionContext.ReadInspectionContext({
 
 The response echoes requestId and has result XOR error. The minimal component counterparty is `createViewFixture()` in `test/view-fixture.ts`; `test/contracts.test.ts` covers the successful selection and both declared errors with the actual provider.
 
+`hanaworldsWorldInspectionContext.ReadPluginRoles` (hanaworlds-contracts 2.9.0, consumer shell-ui) answers every HanaWorlds role → the `moduleName[]` of the plugins providing it in the running host, with `status` COMPLETE/PARTIAL/UNAVAILABLE and named `missingRoles`. It reads only what the host registered: each active Cordis service named by the published `pluginRoles.evidence` table is attributed to the loader module (`fiber.entry.options.name`) of its providing fiber or nearest ancestor; the skills role comes from the live `ctx.skills` catalog entries of the contracted skill (`SkillSummary.provider`, because the DSH skill registry does not expose the registering plugin). Package names, configuration and seeds are never read; versions stay with `remote.pluginManager.listBundles`. A failed read (no loader entry for a contracted service, missing or incomplete skill catalog) is logged under `hanaworlds-plugin-roles` and answered as `CAPABILITY_UNAVAILABLE`, never as an empty map. HTTP: GET `/api-hanaworlds-plugin-roles` (same login/origin fence) returns the whole `ReadPluginRolesResponse`, or 409 `{error, contractError}` on failure.
+
 ## IPC / preload to HTTP mapping
 
 Every route uses the host's request rejection policy. JSON bodies are bounded to 64 KiB. The plugin mints page-window keys and binds each lease to a live Core Session, the actual Canvas registration, and all LocalWorldContext fields. Clear, close, reselect, context/incarnation changes and supplier replacement invalidate the old lease. A lease from another page key is rejected; unload/restart drops all page state. No native chooser is needed.
@@ -72,6 +74,7 @@ Every route uses the host's request rejection policy. JSON bodies are bounded to
 | One current-world object's history | POST `/api-hanaworlds-objects/history` `{windowKey,lease,objectRef}` |
 | Refresh both object and history panels | POST `/api-hanaworlds-objects/panels` `{windowKey,lease}` |
 | Host tool schemas and skill catalog snapshot | GET `/api-hanaworlds-skill-tools` |
+| Role → providing plugins (C-world-inspection ReadPluginRoles) | GET `/api-hanaworlds-plugin-roles` |
 
 World product routes (all under the same upstream login and Host/Origin fence):
 

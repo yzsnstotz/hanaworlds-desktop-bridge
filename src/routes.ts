@@ -28,6 +28,7 @@ export const WORLDS_PATH = '/api-hanaworlds-worlds'
 export const REGION_PATH = '/api-hanaworlds-region'
 export const BUILD_PATH = '/api-hanaworlds-build'
 export const OBJECTS_PATH = '/api-hanaworlds-objects'
+export const PLUGIN_ROLES_PATH = '/api-hanaworlds-plugin-roles'
 /** Request bodies are small JSON objects; anything larger is refused before parsing. */
 const MAX_BODY_BYTES = 64 * 1024
 
@@ -42,6 +43,8 @@ export interface RouteServices {
   build: DesktopBuildBridge
   region(): Promise<unknown>
   tools(): Promise<unknown>
+  /** C-world-inspection ReadPluginRoles over the running host. */
+  pluginRoles(): Promise<import('hanaworlds-contracts').ReadPluginRolesResponse>
 }
 class RequestError extends Error { constructor(readonly status: number, message: string) { super(message) } }
 /** A peer's whole public Error (code, reason, mutationState, target worldRef …) beside the existing `error` text. */
@@ -291,4 +294,10 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
     },
   })
   route('/api-hanaworlds-skill-tools', { 'GET ': async () => services.tools() })
+  // A failed read is the contract error (409 + contractError), never an empty role map.
+  route(PLUGIN_ROLES_PATH, { 'GET ': async () => {
+    const response = await services.pluginRoles()
+    if (response.error) throw new RelayedContractError(response.error)
+    return response
+  } })
 }
