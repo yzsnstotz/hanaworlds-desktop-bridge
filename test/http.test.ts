@@ -32,9 +32,15 @@ async function setup(t: any) {
   } } })
   const agents = new Map(fixtureIds.map(id => [id, { session: sessions.get(SessionId(id))!, status: 'idle',
     inbox: { nextTurn: [], nextStep: [] }, async whenIdle() {} }]))
+  // Host-owned selections and a controller boundary spy; no live model requests.
+  const modelSelections = new Map(fixtureIds.map(id => [id, { provider: 'fixture-provider', model: `fixture-model-${id}` }]))
+  const prompts: { request: any; selection: unknown }[] = []
+  let promptError: Error | undefined
   ctx.provide('agents', { get: (id: string) => agents.get(id), currentInitiator: () => undefined })
   ctx.provide('hanaworldsSkillBusiness', { pending: (session: any) => workshop.pending(session.id) })
   ctx.provide('sessionController', { async prompt(request: any) {
+    prompts.push({ request, selection: modelSelections.get(request.sessionId) })
+    if (promptError) throw promptError
     const session = sessions.get(request.sessionId)!
     const text = request.content[0].text
     session.append('user/message', { id: request.requestId, role: 'user', source: { kind: 'user', rpcId: request.requestId },
@@ -65,7 +71,8 @@ async function setup(t: any) {
     assert.equal(selected.status, 200, JSON.stringify(selected.data))
     return { ...page.data, lease: selected.data.lease }
   }
-  return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved }
+  return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved,
+    modelSelections, prompts, rejectPrompt(error: Error) { promptError = error } }
 }
 
 test('Cordis entry registers authenticated HTTP routes and releases services and peer wrappers', async t => {
@@ -141,6 +148,52 @@ test('HTTP prepare and confirm pass real Core user input through the transport i
   const inputs = h.saved.get(fixtureIds[0])!.filter(e => e.type === 'user/message')
   assert.deepEqual(inputs.map(e => e.data.content[0].text), ['一个小石屋', '确认'])
   assert.equal((await h.request('/api-hanaworlds-workshop/read', binding)).data.view.turns.length, 1)
+})
+
+test('HTTP prepare and confirm delegate routing to the host after its model selection changes', async t => {
+  const h = await setup(t), binding = await h.bind()
+  assert.equal(h.ctx.get('hanaworldsModelRoute' as never), undefined)
+  const before = { provider: 'fixture-provider-a', model: 'fixture-model-a', reasoningEffort: 'high' }
+  h.modelSelections.set(fixtureIds[0], before)
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '一个小石屋' })).status, 200)
+  const after = { provider: 'fixture-provider-b', model: 'fixture-model-b' }
+  h.modelSelections.set(fixtureIds[0], after)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', binding)).status, 200)
+  assert.deepEqual(h.prompts.map(p => p.selection), [before, after])
+  for (const { request } of h.prompts) {
+    // The bridge submits user input only; the host retains provider/model/effort ownership.
+    assert.deepEqual(request, { requestId: request.requestId, sessionId: fixtureIds[0], mode: 'queue', content: request.content })
+    assert.equal(typeof request.requestId, 'string')
+  }
+  assert.deepEqual(h.prompts.map(p => p.request.content), [
+    [{ type: 'text', text: '一个小石屋' }], [{ type: 'text', text: '确认' }],
+  ])
+  assert.equal(h.modelSelections.get(fixtureIds[0]), after)
+})
+
+test('HTTP prompts use the selected session without replacing another host model selection', async t => {
+  const h = await setup(t)
+  const selections = new Map(h.modelSelections)
+  for (const id of fixtureIds) {
+    const binding = await h.bind(id)
+    assert.equal((await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '一个小石屋' })).status, 200)
+  }
+  assert.deepEqual(h.prompts.map(p => p.request.sessionId), fixtureIds)
+  assert.deepEqual(h.prompts.map(p => p.selection), fixtureIds.map(id => selections.get(id)))
+  assert.deepEqual(h.modelSelections, selections)
+})
+
+test('HTTP surfaces host prompt rejection without a fallback model or Workshop mutation', async t => {
+  const h = await setup(t), binding = await h.bind()
+  const selection = h.modelSelections.get(fixtureIds[0])
+  const count = h.workshop.requests.length
+  h.rejectPrompt(new Error('FIXTURE_HOST_MODEL_UNAVAILABLE'))
+  const result = await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '一个小石屋' })
+  assert.equal(result.status, 409)
+  assert.match(result.data.error, /FIXTURE_HOST_MODEL_UNAVAILABLE/)
+  assert.equal(h.prompts.length, 1)
+  assert.equal(h.workshop.requests.length, count)
+  assert.equal(h.modelSelections.get(fixtureIds[0]), selection)
 })
 
 test('view clear, close, revoked selection and stale lease reject subsequent work', async t => {
