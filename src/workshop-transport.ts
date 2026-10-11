@@ -80,17 +80,17 @@ export class DesktopWorkshopTransport {
     await assertLive()
     const context = await this.services.localContext(sessionRef)
     if (!context) deny()
-    const input = { contractVersion: 'session/v3' as const, requestId: randomUUID(), sessionRef, expectedRevision: null }
-    const packet = validateBoundResponse('session/v3', 'StartOrResumeSession', input,
+    const input = { contractVersion: 'session/v5' as const, requestId: randomUUID(), sessionRef, expectedRevision: null }
+    const packet = validateBoundResponse('session/v5', 'StartOrResumeSession', input,
       await this.dispatch('StartOrResumeSession', input, false, assertLive))
     if (packet.error) throw new Error(packet.error.code)
     if (!packet.result) deny()
     let snapshot = packet.result
     if (!sameLocalContext(snapshot.context.localContext, context)) {
-      const input = { contractVersion: 'session/v3' as const, requestId: randomUUID(), sessionRef,
+      const input = { contractVersion: 'session/v5' as const, requestId: randomUUID(), sessionRef,
         expectedRevision: snapshot.context.sessionRevision, worldRef: context.worldRef,
         selectionRevision: context.selectionRevision, localContext: context }
-      const switched = validateBoundResponse('session/v3', 'SwitchWorldContext', input,
+      const switched = validateBoundResponse('session/v5', 'SwitchWorldContext', input,
         await this.dispatch('SwitchWorldContext', input, false, assertLive))
       if (switched.error) throw new Error(switched.error.code)
       if (!switched.result) deny()
@@ -110,7 +110,7 @@ export class DesktopWorkshopTransport {
     const port = this.services.workshop()
     if (!port) throw new Error('WORKSHOP_UNAVAILABLE')
     checkContractHandshake(port.contractHandshake)
-    const wire = operation === 'InvokeAction' ? 'interaction-surface/v4' : 'session/v3'
+    const wire = operation === 'InvokeAction' ? 'interaction-surface/v5' : 'session/v5'
     // Operation membership above and public decoding validate this dynamic native IPC boundary.
     const admit = validateRequest as (wire: string, operation: string, raw: unknown) => Record<string, unknown>
     const request = admit(wire, operation, raw)
@@ -156,8 +156,8 @@ export class DesktopWorkshopTransport {
   async proposal(operation: 'readBuildProposalContext' | 'submitBuildProposal', raw: unknown,
     assertLive: () => Promise<void> = async () => {}): Promise<unknown> {
     const request = operation === 'readBuildProposalContext'
-      ? validateRequest('session/v3', 'AdvanceCurrentBuild', raw)
-      : validateRequest('painter/v4', 'ValidateBuildProposal', raw)
+      ? validateRequest('session/v5', 'AdvanceCurrentBuild', raw)
+      : validateRequest('painter/v6', 'ValidateBuildProposal', raw)
     const session = this.services.session(request.sessionRef), context = await this.services.localContext(request.sessionRef)
     const port = this.services.workshop()
     if (!session || !context || !port || !sameLocalContext(request.localContext, context) || request.worldRef !== context.worldRef) deny()
@@ -171,15 +171,15 @@ export class DesktopWorkshopTransport {
       const invoke = async () => {
         if (operation === 'readBuildProposalContext') {
           if (!port.readBuildProposalContext) throw new Error('WORKSHOP_PROPOSAL_CONTEXT_UNAVAILABLE')
-          const input = validateRequest('session/v3', 'AdvanceCurrentBuild', request)
+          const input = validateRequest('session/v5', 'AdvanceCurrentBuild', request)
           const result = validateType('BuildProposalContext', await port.readBuildProposalContext(input))
           if (result.sessionRef !== input.sessionRef || result.worldRef !== input.worldRef
             || result.turnRevision !== input.expectedTurnRevision || !sameLocalContext(result.localContext, input.localContext)) deny()
           return result
         }
         if (!port.submitBuildProposal) throw new Error('WORKSHOP_PROPOSAL_SUBMIT_UNAVAILABLE')
-        const input = validateRequest('painter/v4', 'ValidateBuildProposal', request)
-        return validateBoundResponse('painter/v4', 'ValidateBuildProposal', input, await port.submitBuildProposal(input))
+        const input = validateRequest('painter/v6', 'ValidateBuildProposal', request)
+        return validateBoundResponse('painter/v6', 'ValidateBuildProposal', input, await port.submitBuildProposal(input))
       }
       const result = await this.active.run(scope, () => this.services.domain?.()?.run(invoke) ?? invoke())
       await this.check(scope)
@@ -191,7 +191,7 @@ export class DesktopWorkshopTransport {
   async region(operation: RegionOperation, raw: unknown, assertLive: () => Promise<void> = async () => {}): Promise<unknown> {
     const request: Record<string, unknown> = operation === 'submitWriteProposal'
       ? { ...validateRegionProposalRequest(raw) }
-      : { ...validateRequest('session/v3', operation === 'undoRegionBuild' ? 'UndoCurrentBuild' : 'AdvanceCurrentBuild', raw) }
+      : { ...validateRequest('session/v5', operation === 'undoRegionBuild' ? 'UndoCurrentBuild' : 'AdvanceCurrentBuild', raw) }
     const sessionRef = request.sessionRef as string, session = this.services.session(sessionRef)
     const context = await this.services.localContext(sessionRef), port = this.services.workshop()
     if (!session || !context || !port || !sameLocalContext(request.localContext as LocalWorldContext, context)
@@ -208,8 +208,8 @@ export class DesktopWorkshopTransport {
       if (operation === 'submitWriteProposal') {
         // Workshop holds its Session lock while Painter calls back, so the turn facts are read from its
         // public snapshot first; Workshop re-reads its own region context after Painter returns.
-        const read = { contractVersion: 'session/v3', requestId: randomUUID(), sessionRef, expectedRevision: null }
-        const snapshot = validateBoundResponse('session/v3', 'StartOrResumeSession', read, await port.call('StartOrResumeSession', read))
+        const read = { contractVersion: 'session/v5', requestId: randomUUID(), sessionRef, expectedRevision: null }
+        const snapshot = validateBoundResponse('session/v5', 'StartOrResumeSession', read, await port.call('StartOrResumeSession', read))
         if (snapshot.error) throw new Error(snapshot.error.code)
         const turn = snapshot.result?.turns.at(-1)
         if (!turn) throw new Error('INTENT_UNCONFIRMED')
@@ -243,7 +243,8 @@ export class DesktopWorkshopTransport {
       if (Object.hasOwn(input.payload, key)) deny()
     }
     const operation = input.operation
-    const body = { ...input.payload, requestId: input.payload.requestId ?? randomUUID(), sessionRef,
+    const body = { ...input.payload, contractVersion: operation === 'InvokeAction' ? 'interaction-surface/v5' : 'session/v5',
+      requestId: input.payload.requestId ?? randomUUID(), sessionRef,
       ...(operation === 'StartOrResumeSession' ? {} : { localContext: context }),
       ...(['SwitchWorldContext', 'AdvanceCurrentBuild', 'ReadCurrentUndoStatus', 'UndoCurrentBuild'].includes(operation) ? { worldRef: context.worldRef } : {}),
       ...(operation === 'SwitchWorldContext' ? { selectionRevision: context.selectionRevision } : {}) }

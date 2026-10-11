@@ -60,8 +60,8 @@ function sameView(left: DesktopBindingView, right: DesktopBindingView): boolean 
 
 /** Runtime contract admission applies before the port sees a request and after it answers. */
 async function callWorkshop<T>(port: DesktopWorkshopPort, operation: Operation, body: object): Promise<T> {
-  const validate = ((op: Operation, value: unknown) => validateRequest('session/v3', op, value)) as (op: Operation, value: unknown) => { readonly requestId: string }
-  const response = ((op: Operation, request: unknown, value: unknown) => validateBoundResponse('session/v3', op, request, value)) as (op: Operation, request: unknown, value: unknown) => {
+  const validate = ((op: Operation, value: unknown) => validateRequest('session/v5', op, value)) as (op: Operation, value: unknown) => { readonly requestId: string }
+  const response = ((op: Operation, request: unknown, value: unknown) => validateBoundResponse('session/v5', op, request, value)) as (op: Operation, request: unknown, value: unknown) => {
     readonly requestId: string
     readonly result: T | null
     readonly error: { readonly code: string } | null
@@ -101,7 +101,7 @@ export class DesktopWorkshopConfirmations {
   private async snapshot(trusted: Trusted, windowKey: string, lease: string): Promise<SessionSnapshot> {
     const { view, port } = trusted
     const snapshot = await callWorkshop<SessionSnapshot>(port, 'StartOrResumeSession', {
-      contractVersion: 'session/v3', sessionRef: view.sessionId,
+      contractVersion: 'session/v5', sessionRef: view.sessionId,
       requestId: randomUUID(), expectedRevision: null,
     })
     await this.checked(windowKey, lease, 'READ', trusted)
@@ -113,7 +113,7 @@ export class DesktopWorkshopConfirmations {
     const snapshot = await this.snapshot(trusted, windowKey, lease)
     const { view, port } = trusted
     const details = await callWorkshop<SessionTurnDetails>(port, 'ReadSessionTurnDetails', {
-      contractVersion: 'session/v3', sessionRef: view.sessionId,
+      contractVersion: 'session/v5', sessionRef: view.sessionId,
       requestId: randomUUID(), localContext: view.localContext,
     })
     await this.checked(windowKey, lease, 'READ', trusted)

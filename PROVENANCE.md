@@ -121,3 +121,67 @@ e5f5549750 2026-10-07 Fix unchanged local tar reinstall and retain world failure
 f590afaa3b 2026-10-07 fix(desktop): route native Prepare and Confirm through building skill
 (28 commits total)
 ```
+
+# desktop-bridge-01 plugin adaptation
+
+The initial ecef8ed move is retained. `src/index.ts` extracts the composition from the index.ts history above; `routes.ts` replaces only the current-view/Workshop channels. New lifecycle, world-pairing and inspection contracts are deferred per PM scope. Fixture authorization fields were replaced by released session/v5 and canvas/v7 context facts; fixture persistence/model remain explicit simulations.
+
+## apps/desktop-host/src/skill-submission.ts → src/skill-submission.ts
+
+```
+45f255ca1f 2026-10-07 Fix native skill controller registration checks and entry fixture
+f590afaa3b 2026-10-07 fix(desktop): route native Prepare and Confirm through building skill
+```
+
+## apps/desktop-host/deferred/authorized-039/src/workshop-fixture.ts.deferred → test/workshop-fixture.ts
+
+```
+66953b6c82 2026-10-06 Connect Desktop Host to current local-world contracts and Undo
+d1b8d7a705 2026-10-05 feat(hanaworlds): confirm Workshop rounds in trusted Core Session
+```
+
+## apps/desktop-host/deferred/authorized-039/src/view-fixture.ts.deferred → test/view-fixture.ts
+
+```
+66953b6c82 2026-10-06 Connect Desktop Host to current local-world contracts and Undo
+d1b8d7a705 2026-10-05 feat(hanaworlds): confirm Workshop rounds in trusted Core Session
+ac884bdbe8 2026-10-05 Bind HanaWorlds Desktop views to trusted Core Sessions
+```
+
+## apps/desktop/src/ipc.ts → src/routes.ts mapping
+
+```
+f590afaa3b 2026-10-07 fix(desktop): route native Prepare and Confirm through building skill
+66953b6c82 2026-10-06 Connect Desktop Host to current local-world contracts and Undo
+5d05182c50 2026-10-06 feat(desktop): pair local worlds through current native authority
+2b0a10d61a 2026-10-05 feat(desktop): persist Session authority and authenticate Workshop transport
+6acaf42f51 2026-10-05 Wire migrated Workshop read-only archives through Desktop Host
+d1b8d7a705 2026-10-05 feat(hanaworlds): confirm Workshop rounds in trusted Core Session
+ac884bdbe8 2026-10-05 Bind HanaWorlds Desktop views to trusted Core Sessions
+4932a4da4e 2026-10-05 Import DeepSeek Harness dsh-v0.2.0-rc.2 source snapshot
+```
+
+## apps/desktop/src/preload-app.ts → src/routes.ts mapping
+
+```
+66953b6c82 2026-10-06 Connect Desktop Host to current local-world contracts and Undo
+5d05182c50 2026-10-06 feat(desktop): pair local worlds through current native authority
+2b0a10d61a 2026-10-05 feat(desktop): persist Session authority and authenticate Workshop transport
+6acaf42f51 2026-10-05 Wire migrated Workshop read-only archives through Desktop Host
+d1b8d7a705 2026-10-05 feat(hanaworlds): confirm Workshop rounds in trusted Core Session
+ac884bdbe8 2026-10-05 Bind HanaWorlds Desktop views to trusted Core Sessions
+3adc72927e 2026-10-05 Keep research profile projection preload-safe
+8383812597 2026-10-05 Add isolated HanaWorlds Electron research desktop and Shell management
+```
+
+## apps/desktop/src/host-process.ts → src/routes.ts mapping
+
+```
+66953b6c82 2026-10-06 Connect Desktop Host to current local-world contracts and Undo
+5d05182c50 2026-10-06 feat(desktop): pair local worlds through current native authority
+2b0a10d61a 2026-10-05 feat(desktop): persist Session authority and authenticate Workshop transport
+6acaf42f51 2026-10-05 Wire migrated Workshop read-only archives through Desktop Host
+d1b8d7a705 2026-10-05 feat(hanaworlds): confirm Workshop rounds in trusted Core Session
+ac884bdbe8 2026-10-05 Bind HanaWorlds Desktop views to trusted Core Sessions
+4932a4da4e 2026-10-05 Import DeepSeek Harness dsh-v0.2.0-rc.2 source snapshot
+```

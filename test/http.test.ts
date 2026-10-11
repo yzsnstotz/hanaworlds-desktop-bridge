@@ -1,0 +1,218 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { Context } from '@deepseek-ai/cordis'
+import { SessionStore, SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
+import { WebServer } from '@deepseek-ai/dsh-host-webserver'
+import { validateType } from 'hanaworlds-contracts'
+import * as plugin from 'hanaworlds-desktop-bridge'
+import { createViewFixture, fixtureIds } from './view-fixture.ts'
+import { createWorkshopFixture, fixtureControls } from './workshop-fixture.ts'
+
+/** Real Cordis + Core Session + HTTP carrier; model, Canvas and persistence are explicit test peers. */
+async function setup(t: any) {
+  const ctx = new Context()
+  const sessionsFiber = await ctx.plugin(SessionStore)
+  const serverFiber = await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
+  const canvas = createViewFixture(), workshop = createWorkshopFixture(canvas)
+  const originalCanvasCall = canvas.call
+  ctx.provide('connection', { requestRejection(req: any) {
+    if (req.headers.origin !== 'http://fixture.local') return 403
+    if (req.headers.cookie !== 'fixture-login=valid') return 401
+  } })
+  ctx.provide('hanaworldsCanvasV5', canvas)
+  ctx.provide('hanaworldsWorkshop', workshop)
+  const sessions = ctx.sessions
+  for (const id of fixtureIds) sessions.create(SessionId(id))
+  // The original fixture's durable Core seam, modeled in memory for component tests.
+  const saved = new Map<string, readonly any[]>()
+  const flushDisposer = ctx.on('session/flush', session => { saved.set(session.id, session.snapshotEvents()) })
+  ctx.provide('sessionPersistence', { async open(id: string) { return {
+    async read(from = 0, count?: number) { return { events: (saved.get(id) ?? []).slice(Number(from), count === undefined ? undefined : Number(from) + count) } },
+    async close() {},
+  } } })
+  const agents = new Map(fixtureIds.map(id => [id, { session: sessions.get(SessionId(id))!, status: 'idle',
+    inbox: { nextTurn: [], nextStep: [] }, async whenIdle() {} }]))
+  ctx.provide('agents', { get: (id: string) => agents.get(id), currentInitiator: () => undefined })
+  ctx.provide('hanaworldsSkillBusiness', { pending: (session: any) => workshop.pending(session.id) })
+  ctx.provide('sessionController', { async prompt(request: any) {
+    const session = sessions.get(request.sessionId)!
+    const text = request.content[0].text
+    session.append('user/message', { id: request.requestId, role: 'user', source: { kind: 'user', rpcId: request.requestId },
+      content: [{ type: 'text', text }] }, { surfaceOp: 'append' })
+    const context = canvas.context(session.id)!, snapshot = workshop.snapshot(session.id), pending = workshop.pending(session.id)
+    const operation = pending ? 'AnswerClarification' : 'AppendMultimodalTurn'
+    const input = pending ? { turnRef: snapshot.turns.at(-1)!.turnRef, clarificationId: pending.clarificationId, answer: text }
+      : { turnRef: `FIXTURE/turn/${request.requestId}`, text, media: [], controls: fixtureControls }
+    await ctx.hanaworldsDesktopBridge.transport.dispatch(operation, {
+      contractVersion: 'session/v5', requestId: request.requestId, sessionRef: session.id,
+      expectedRevision: snapshot.context.sessionRevision, localContext: context, ...input,
+    })
+  } })
+  const bridgeFiber = await ctx.plugin(plugin)
+  const base = `http://127.0.0.1:${ctx.webServer.port}`
+  t.after(async () => { await bridgeFiber.dispose(); flushDisposer(); await serverFiber.dispose(); await sessionsFiber.dispose() })
+  async function request(path: string, data?: unknown, headers: Record<string, string> = {}) {
+    const response = await fetch(base + path, { method: data === undefined ? 'GET' : 'POST', headers: {
+      origin: 'http://fixture.local', cookie: 'fixture-login=valid', 'content-type': 'application/json', ...headers,
+    }, ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
+    const raw = await response.text()
+    return { status: response.status, data: raw ? JSON.parse(raw) : null }
+  }
+  async function bind(id = fixtureIds[0]) {
+    const page = await request('/api-hanaworlds-view/window', {})
+    assert.equal(page.status, 200)
+    const selected = await request('/api-hanaworlds-view/select', { ...page.data, sessionId: id })
+    assert.equal(selected.status, 200, JSON.stringify(selected.data))
+    return { ...page.data, lease: selected.data.lease }
+  }
+  return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved }
+}
+
+test('Cordis entry registers authenticated HTTP routes and releases services and peer wrappers', async t => {
+  const h = await setup(t)
+  assert.deepEqual((await h.request('/api-hanaworlds-view/candidates')).data.candidates, fixtureIds)
+  assert.equal((await h.request('/api-hanaworlds-view/window', {}, { cookie: '' })).status, 401)
+  assert.equal((await h.request('/api-hanaworlds-view/window', {}, { origin: 'http://foreign.local' })).status, 403)
+  assert.notEqual(h.canvas.call, h.originalCanvasCall)
+  validateType('PublicCapabilities', h.ctx.hanaworldsCapabilities)
+  assert.ok(h.ctx.hanaworldsPainterLocalFacts)
+  assert.ok(h.ctx.hanaworldsWorldInspectionContext)
+  assert.equal((await h.request('/api-hanaworlds-skill-tools')).data.kind, 'WORKSHOP_TOOL_DESCRIPTIONS')
+  await h.bridgeFiber.dispose()
+  assert.equal(h.ctx.get('hanaworldsDesktopBridge'), undefined)
+  assert.equal(h.ctx.get('hanaworldsCatalogue'), undefined)
+  assert.equal(h.canvas.call, h.originalCanvasCall)
+  assert.equal((await h.request('/api-hanaworlds-view/candidates')).status, 404)
+})
+
+test('HTTP invoke enriches interaction input from the selected Core session and Canvas context', async t => {
+  const h = await setup(t), binding = await h.bind()
+  const result = await h.request('/api-hanaworlds-workshop/invoke', { ...binding,
+    input: { operation: 'workshop', input: { operation: 'StartOrResumeSession', payload: { expectedRevision: null } } },
+  })
+  assert.equal(result.status, 200, JSON.stringify(result.data))
+  assert.equal(result.data.result.result.context.currentSession, fixtureIds[0])
+  const context = await h.request('/api-hanaworlds-workshop/invoke', { ...binding,
+    input: { operation: 'context', input: { sessionRef: fixtureIds[0] } },
+  })
+  assert.deepEqual(context.data.result.localContext, { ...h.canvas.context(fixtureIds[0]) })
+})
+
+test('HTTP refuses forged authority in interaction payload without dispatching to Workshop', async t => {
+  const h = await setup(t), binding = await h.bind()
+  for (const key of ['sessionRef', 'worldRef', 'localContext', 'actorRef', 'authorizationRef', 'callerRole', 'bindingRef', 'grantEpoch', 'allowedActions']) {
+    const count = h.workshop.requests.length
+    const result = await h.request('/api-hanaworlds-workshop/invoke', { ...binding, input: {
+      operation: 'workshop', input: { operation: 'StartOrResumeSession', payload: { expectedRevision: null, [key]: 'FORGED' } },
+    } })
+    assert.equal(result.status, 409, key)
+    assert.match(result.data.error, /LOCAL_CONTEXT_REQUIRED/)
+    assert.equal(h.workshop.requests.length, count)
+  }
+  assert.equal((await h.request('/api-hanaworlds-workshop/invoke', { ...binding,
+    input: { operation: 'context', input: { sessionRef: fixtureIds[1] } } })).status, 409)
+})
+
+test('HTTP session selection refuses an absent Core identity before calling Workshop', async t => {
+  const h = await setup(t), window = (await h.request('/api-hanaworlds-view/window', {})).data
+  const count = h.workshop.requests.length
+  const result = await h.request('/api-hanaworlds-view/select', { ...window, sessionId: 'FORGED/non-core-session' })
+  assert.equal(result.status, 409)
+  assert.equal(h.workshop.requests.length, count)
+})
+
+test('HTTP prepare and confirm pass real Core user input through the transport into published session/v5', async t => {
+  const h = await setup(t), binding = await h.bind()
+  assert.match((await h.request('/api-hanaworlds-workshop/confirm', binding)).data.error, /NO_CURRENT_ROUND/)
+  const prepared = await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '一个小石屋' })
+  assert.equal(prepared.status, 200, JSON.stringify(prepared.data))
+  assert.equal(prepared.data.view.source, 'FIXTURE')
+  assert.equal(prepared.data.view.turns[0].userText, '一个小石屋')
+  assert.ok(prepared.data.view.pending)
+  const confirmed = await h.request('/api-hanaworlds-workshop/confirm', binding)
+  assert.equal(confirmed.status, 200, JSON.stringify(confirmed.data))
+  assert.equal(confirmed.data.view.pending, null)
+  assert.match(confirmed.data.view.turns[0].resultText, /已确认/)
+  const mutations = h.workshop.requests.filter(r => ['AppendMultimodalTurn', 'AnswerClarification'].includes(r.operation))
+  assert.deepEqual(mutations.map(r => r.operation), ['AppendMultimodalTurn', 'AnswerClarification'])
+  for (const { request } of mutations) {
+    assert.equal(request.sessionRef, fixtureIds[0]); assert.deepEqual(request.localContext, h.canvas.context(fixtureIds[0]))
+  }
+  const inputs = h.saved.get(fixtureIds[0])!.filter(e => e.type === 'user/message')
+  assert.deepEqual(inputs.map(e => e.data.content[0].text), ['一个小石屋', '确认'])
+  assert.equal((await h.request('/api-hanaworlds-workshop/read', binding)).data.view.turns.length, 1)
+})
+
+test('view clear, close, revoked selection and stale lease reject subsequent work', async t => {
+  const h = await setup(t)
+  let binding = await h.bind()
+  assert.equal((await h.request('/api-hanaworlds-view/read', { ...binding, lease: 'FORGED' })).status, 409)
+  assert.equal((await h.request('/api-hanaworlds-view/read', binding)).status, 200)
+  await h.request('/api-hanaworlds-view/clear', binding)
+  assert.equal((await h.request('/api-hanaworlds-view/read', binding)).status, 409)
+  binding = await h.bind()
+  h.canvas.act(fixtureIds[0], 'revoke')
+  assert.match((await h.request('/api-hanaworlds-view/read', binding)).data.error, /CONTEXT_CHANGED/)
+  h.canvas.act(fixtureIds[0], 'regrant')
+  binding = await h.bind()
+  assert.equal((await h.request('/api-hanaworlds-view/close', binding)).status, 200)
+  assert.equal((await h.request('/api-hanaworlds-view/read', binding)).status, 404)
+})
+
+test('direct HTTP append persists Core input and returns released stale-revision errors', async t => {
+  const h = await setup(t), binding = await h.bind()
+  const snapshot = h.workshop.snapshot(fixtureIds[0])
+  const input = { operation: 'workshop', input: { operation: 'AppendMultimodalTurn', payload: {
+    turnRef: 'FIXTURE/http-turn', expectedRevision: snapshot.context.sessionRevision,
+    text: '测试直接传输', media: [], controls: fixtureControls,
+  } } }
+  const result = await h.request('/api-hanaworlds-workshop/invoke', { ...binding, input })
+  assert.equal(result.status, 200, JSON.stringify(result.data))
+  assert.equal(result.data.result.error, null)
+  const appended = h.workshop.requests.find(r => r.operation === 'AppendMultimodalTurn')!
+  assert.equal(appended.request.contractVersion, 'session/v5')
+  assert.equal(appended.request.sessionRef, fixtureIds[0])
+  assert.deepEqual(appended.request.localContext, h.canvas.context(fixtureIds[0]))
+  assert.equal(h.saved.get(fixtureIds[0])!.filter(e => e.type === 'user/message').length, 1)
+  const stale = await h.request('/api-hanaworlds-workshop/invoke', { ...binding, input: {
+    operation: 'workshop', input: { operation: 'StartOrResumeSession', payload: { expectedRevision: 'STALE' } },
+  } })
+  assert.equal(stale.data.result.result, null)
+  assert.equal(stale.data.result.error.code, 'STALE_REVISION')
+})
+
+test('confirm refuses busy Agents and rejects a changed view while a human prompt is running', async t => {
+  const h = await setup(t), binding = await h.bind()
+  h.agents.get(fixtureIds[0])!.status = 'busy'
+  assert.match((await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: 'busy' })).data.error, /AGENT_BUSY/)
+  h.agents.get(fixtureIds[0])!.status = 'idle'
+  const agent = h.agents.get(fixtureIds[0])!
+  agent.whenIdle = async () => { h.canvas.act(fixtureIds[0], 'regrant') }
+  const prepared = await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: 'changing selection' })
+  assert.equal(prepared.status, 409)
+  assert.match(prepared.data.error, /CONTEXT_CHANGED/)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', binding)).status, 409)
+})
+
+test('deployment keeps UNAVAILABLE source facts and missing region peers visible', async t => {
+  const h = await setup(t), binding = await h.bind()
+  const description = (await h.request('/api-hanaworlds-deployment', binding)).data
+  assert.equal(description.compilerConfig.value, null)
+  assert.match(description.compilerConfig.error, /COMPILER_CONFIG_UNAVAILABLE/)
+  assert.deepEqual(description.fixed[0].value, { availability: 'UNAVAILABLE', reason: 'NO_PUBLIC_SOURCE' })
+  const seams = (await h.request('/api-hanaworlds-region')).data
+  assert.equal(seams.length, 4)
+  assert.ok(seams.every((s: any) => !s.compatible && s.unmet.code === 'PEER_UNAVAILABLE'))
+})
+
+test('HTTP rejects invalid JSON, oversized bodies, unsupported routes and unknown page handles', async t => {
+  const h = await setup(t)
+  assert.equal((await h.request('/api-hanaworlds-view/read', { windowKey: 'unknown', lease: 'unknown' })).status, 404)
+  assert.equal((await h.request('/api-hanaworlds-view/no-such-action')).status, 404)
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', [], { 'content-type': 'text/plain' })).status, 415)
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', [])).status, 400)
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', { text: 'x'.repeat(65537) })).status, 413)
+  const raw = await fetch(h.base + '/api-hanaworlds-view/read', { method: 'POST',
+    headers: { origin: 'http://fixture.local', cookie: 'fixture-login=valid', 'content-type': 'application/json' }, body: '{' })
+  assert.equal(raw.status, 400)
+})

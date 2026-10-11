@@ -26,10 +26,10 @@ export interface RegionPortServices {
 const capabilities = (wire: string) => regionCapabilities.map(c => c.id).filter(id => id.startsWith(`${wire}:`)).sort()
 /** Every region seam the K3 write path crosses, in path order. */
 export const REGION_SEAMS = Object.freeze([
-  { seam: 'painter', label: 'Painter', service: 'hanaworldsPainterV2PictureBlocks → hanaworldsPainterRegionV1', wire: 'painter-region/v1' },
-  { seam: 'brush', label: 'Brush', service: 'hanaworldsBrushV3 → hanaworldsBrushRegionV1', wire: 'region-build/v1' },
-  { seam: 'canvas', label: 'Canvas', service: 'hanaworldsCanvasRegionV1', wire: 'canvas-region/v1' },
-  { seam: 'adapter', label: 'Adapter', service: 'hanaworldsWorldAdapterRegionV1', wire: 'world-adapter-region/v1' },
+  { seam: 'painter', label: 'Painter', service: 'hanaworldsPainterV2PictureBlocks → hanaworldsPainterRegionV1', wire: 'painter-region/v3' },
+  { seam: 'brush', label: 'Brush', service: 'hanaworldsBrushV3 → hanaworldsBrushRegionV1', wire: 'region-build/v2' },
+  { seam: 'canvas', label: 'Canvas', service: 'hanaworldsCanvasRegionV1', wire: 'canvas-region/v3' },
+  { seam: 'adapter', label: 'Adapter', service: 'hanaworldsWorldAdapterRegionV1', wire: 'world-adapter-region/v3' },
 ] as const)
 export type RegionSeam = typeof REGION_SEAMS[number]['seam']
 export interface RegionSeamStatus {
@@ -53,7 +53,7 @@ function check(seam: typeof REGION_SEAMS[number], present: boolean, handshake: u
   if (!present) return { ...base, compatible: false, matched: null, unmet: { code: 'PEER_UNAVAILABLE',
     need: `${seam.label} service ${seam.service} (${seam.wire})`, remedy: `Install/enable a ${seam.label} plugin providing ${seam.wire}.` } }
   try {
-    const matched = checkProtocolCompatibility(handshake ?? null, [protocolRequirement(seam.wire, requiredCapabilities, seam.seam === 'adapter' ? 1 : 0)])
+    const matched = checkProtocolCompatibility(handshake ?? null, [protocolRequirement(seam.wire, requiredCapabilities)])
     return { ...base, compatible: true, matched: structuredClone(matched), unmet: null }
   } catch (error) {
     if (!(error instanceof ContractError)) throw error
@@ -120,9 +120,9 @@ export function regionInvariantRows() {
  * @returns The admitted protocol and component identity; package hashes are only recorded.
  */
 export function requireAdapterWritePath(method: 'PER_CELL' | 'REGION', handshake: unknown) {
-  const wire = method === 'PER_CELL' ? 'world-adapter/v6' : 'world-adapter-region/v1'
+  const wire = method === 'PER_CELL' ? 'world-adapter/v8' : 'world-adapter-region/v3'
   const required = method === 'PER_CELL'
-    ? ['world-adapter/v6:callback-free-write', 'world-adapter/v6:write-path-state-facts']
+    ? ['world-adapter/v8:callback-free-write', 'world-adapter/v8:write-path-state-facts']
     : capabilities(wire)
-  return checkProtocolCompatibility(handshake ?? null, [protocolRequirement(wire, required, 1)])
+  return checkProtocolCompatibility(handshake ?? null, [protocolRequirement(wire, required)])
 }

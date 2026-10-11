@@ -1,0 +1,50 @@
+{
+  "name": "hanaworlds-desktop-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "HanaWorlds server-side bridge plugin (cordis): session-world binding, workshop transport/confirm, build bridge, inspection facts, region ports, deployment policy, image media; HTTP routes over ctx.webServer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yzsnstotz/hanaworlds-desktop-bridge.git"
+  },
+  "engines": {
+    "node": ">=24.13.1"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
+    }
+  },
+  "scripts": {
+    "verify:contracts": "node scripts/verify-contracts.mjs",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
+    "pretest": "npm run build",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-attachment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-host-webserver": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-session": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-session-persistence": "0.2.0-rc.2",
+    "hanaworlds-contracts": "git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.0.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "6.0.3"
+  },
+  "files": [
+    "lib/",
+    "PROVENANCE.md",
+    "README.md"
+  ]
+}

@@ -50,14 +50,15 @@ export class DesktopBuildBridge {
   /** Canvas region transactions run only inside a live Host region dispatch for the same Session/world. */
   private wrapRegion(port: RegionCallPort): void {
     if (this.wrapped.has(same(port) ?? port)) return
+    const registered = same(port) ?? port
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Restored verbatim and called with its owning service.
-    const original = port.call
+    const original = registered.call
     const { active, checking } = this
     const wrapper = async function(this: RegionCallPort, operation: string, raw: unknown): Promise<unknown> {
       const scope = active.getStore()
       if (!scope?.open || !canvasRegionOperations.has(operation)) deny()
       const decode = validateRequest as (wire: string, operation: string, raw: unknown) => Record<string, unknown>
-      const request = decode('canvas-region/v1', operation, raw)
+      const request = decode('canvas-region/v3', operation, raw)
       const current = scope.captured.localContext
       if (request.sessionRef !== scope.captured.sessionRef || request.worldRef !== current.worldRef
         || !sameLocalContext(request.localContext as typeof current, current)) deny()
@@ -66,13 +67,14 @@ export class DesktopBuildBridge {
       await checking.run(true, () => scope.captured.check())
       return response
     }
-    port.call = wrapper; this.wrapped.add(same(port) ?? port)
-    this.disposers.push(() => { if (port.call === wrapper) port.call = original })
+    registered.call = wrapper; this.wrapped.add(registered)
+    this.disposers.push(() => { if (registered.call === wrapper) registered.call = original })
   }
   private wrap(port: DomainPort, kind: 'canvas' | 'adapter'): void {
     if (this.wrapped.has(same(port) ?? port)) return
+    const registered = same(port) ?? port
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Restored verbatim and called with its owning service.
-    const original = port.call
+    const original = registered.call
     const { active, services, canvasCall, checking, canvasInspection } = this
     const wrapper = async function(this: DomainPort, operation: string, raw: unknown): Promise<unknown> {
       const scope = active.getStore()
@@ -83,7 +85,7 @@ export class DesktopBuildBridge {
       if (same(services.canvas()) !== same(scope.canvas) || same(services.adapter()) !== same(scope.adapter)
         || same(port) !== same(kind === 'canvas' ? scope.canvas : scope.adapter)) deny()
       if (kind === 'adapter' && !adapterReads.has(operation) && canvasCall.getStore() !== scope) deny()
-      const wire = kind === 'canvas' ? 'canvas/v5' : 'world-adapter/v6'
+      const wire = kind === 'canvas' ? 'canvas/v7' : 'world-adapter/v8'
       const decode = validateRequest as (wire: string, operation: string, raw: unknown) => Record<string, unknown>
       const request = decode(wire, operation, raw)
       const current = scope.captured.localContext
@@ -103,8 +105,8 @@ export class DesktopBuildBridge {
       const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
       return validate(wire, operation, request, response)
     }
-    port.call = wrapper; this.wrapped.add(same(port) ?? port)
-    this.disposers.push(() => { if (port.call === wrapper) port.call = original })
+    registered.call = wrapper; this.wrapped.add(registered)
+    this.disposers.push(() => { if (registered.call === wrapper) registered.call = original })
   }
   async run(call: () => Promise<unknown>): Promise<unknown> {
     this.bind()

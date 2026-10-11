@@ -30,9 +30,9 @@ type Result<W extends keyof OperationMap, N extends keyof OperationMap[W]> =
 export async function callLocal<W extends keyof OperationMap, N extends keyof OperationMap[W] & string>(
   port: DomainPort, wire: W, operation: N, raw: unknown): Promise<Result<W, N>> {
   if (port.protocolHandshake !== undefined) {
-    const capabilities = wire === 'world-adapter/v6'
-      ? ['world-adapter/v6:callback-free-write', 'world-adapter/v6:write-path-state-facts'] : []
-    checkProtocolCompatibility(port.protocolHandshake, [protocolRequirement(wire, capabilities, wire === 'world-adapter/v6' ? 1 : 0)])
+    const capabilities = wire === 'world-adapter/v8'
+      ? ['world-adapter/v8:callback-free-write', 'world-adapter/v8:write-path-state-facts'] : []
+    checkProtocolCompatibility(port.protocolHandshake, [protocolRequirement(wire, capabilities)])
   } else {
     checkContractHandshake(port.contractHandshake, { wires: [wire], factProfiles: [] })
   }

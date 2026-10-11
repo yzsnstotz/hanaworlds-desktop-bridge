@@ -29,7 +29,7 @@ export class DesktopPainterFacts {
     if (operation !== 'ValidateBuildProposal') throw new Error('PAINTER_FACTS_CAPABILITY_UNAVAILABLE')
     options.signal?.throwIfAborted()
     const current = this.transport.trustedInvocation()
-    const request = validateRequest('painter/v4', 'ValidateBuildProposal', raw)
+    const request = validateRequest('painter/v6', 'ValidateBuildProposal', raw)
     if (request.sessionRef !== current.sessionRef || !sameLocalContext(request.localContext, current.localContext)) throw new Error('LOCAL_CONTEXT_REQUIRED')
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Captured with its owner and invoked using call below.
     const read = current.workshop.readBuildProposalProviderFacts

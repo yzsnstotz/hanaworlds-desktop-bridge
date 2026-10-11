@@ -1,0 +1,144 @@
+/** Cordis composition extracted from desktop-host@bd964cdf; no Electron process or bootstrap. */
+import { randomUUID } from 'node:crypto'
+import type { Context } from '@deepseek-ai/cordis'
+import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session/types'
+import type {} from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-client-connection'
+import { validateType } from 'hanaworlds-contracts'
+import { DesktopBuildBridge, type DomainPort, type NativeFactsPort } from './build-bridge.ts'
+import { DesktopDeploymentPolicy, type CompilerConfigPort } from './deployment-policy.ts'
+import { DesktopInspectionFacts } from './inspection-facts.ts'
+import { DesktopPainterFacts } from './painter-facts.ts'
+import { DesktopImageMedia, desktopImageMediaTypes } from './image-media.ts'
+import { DesktopRegionPorts, type RegionPort, type PainterRegionEntry, type BrushRegionEntry } from './region-ports.ts'
+import { DesktopSessionWorlds } from './session-worlds.ts'
+import { DesktopWorkshopTransport } from './workshop-transport.ts'
+import { DesktopSkillSubmission } from './skill-submission.ts'
+import { installDesktopViewBindings, type DesktopViewBindings } from './view-binding.ts'
+import { DesktopWorkshopConfirmations, type DesktopWorkshopPort } from './workshop-confirm.ts'
+import { installRoutes } from './routes.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    hanaworldsCanvasV5: DomainPort
+    hanaworldsWorldAdapterV6: DomainPort
+    /** Existing v2.0.0 in-process facts supplier; not a new C-world-facts wire. */
+    hanaworldsWorldFacts: NativeFactsPort
+    /** Owned by Canvas in published v2.0.0. The bridge consumes, never shadows it. */
+    hanaworldsCompilerConfig: CompilerConfigPort
+    hanaworldsWorldRevisionOracle: { read(worldRef: string): Promise<unknown> }
+    hanaworldsPainterV2PictureBlocks: PainterRegionEntry
+    hanaworldsBrushV3: BrushRegionEntry
+    hanaworldsCanvasRegionV1: RegionPort
+    hanaworldsWorldAdapterRegionV1: RegionPort
+    hanaworldsPainterRegionV1: RegionPort
+    hanaworldsBrushRegionV1: RegionPort
+    hanaworldsCatalogue: { read(worldRef: string): Promise<unknown> }
+    hanaworldsSafetyProfile: { read(confirmedIntent: unknown): unknown }
+    /** Captured InspectWorld facts only; ReadInspectionContext belongs to desktop-bridge-08. */
+    hanaworldsWorldInspectionContext: { read(request: unknown): Promise<unknown> }
+    hanaworldsPainterLocalFacts: DesktopPainterFacts
+    hanaworldsCapabilities: import('hanaworlds-contracts').PublicCapabilities
+    hanaworldsMediaAuthority: { verify(input: { sessionRef: string; attachmentRef: string }): Promise<boolean> }
+    hanaworldsSkillBusiness: { pending(session: import('@deepseek-ai/dsh-session').Session): { question: string } | null }
+    hanaworldsDesktopBridge: {
+      transport: DesktopWorkshopTransport
+      views: DesktopViewBindings
+      confirmations: DesktopWorkshopConfirmations
+      images: DesktopImageMedia
+      deployment: DesktopDeploymentPolicy
+    }
+  }
+}
+
+export const name = 'hanaworlds-desktop-bridge'
+export const inject = ['webServer', 'connection', 'sessions', 'hanaworldsWorkshop', 'hanaworldsCanvasV5']
+
+/** Reuse the host's services; all registrations and peer wrappers belong to this plugin fiber. */
+export function apply(ctx: Context): void {
+  const sessions = ctx.sessions
+  const worlds = new DesktopSessionWorlds({ session: id => sessions.get(SessionId(id)),
+    workshop: () => ctx.get('hanaworldsWorkshop'), canvas: () => ctx.get('hanaworldsCanvasV5') })
+  const persistence = () => ctx.get('sessionPersistence')
+  const transport: DesktopWorkshopTransport = new DesktopWorkshopTransport({
+    session: id => sessions.get(SessionId(id)), localContext: id => worlds.localContext(id),
+    workshop: () => ctx.get('hanaworldsWorkshop') as DomainPort | undefined, domain: () => build,
+    async recordInput(id, requestId, text) {
+      const session = sessions.get(SessionId(id)), store = persistence()
+      if (!session || !store) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
+      const event = session.append('user/message', { id: requestId as never, role: 'user', source: { kind: 'user' },
+        content: [{ type: 'text', text }] }, { surfaceOp: 'append' })
+      if (!await sessions.flush(session)) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
+      const handle = await store.open(session.id, 'read')
+      try {
+        const saved = (await handle.read(event.seq, 1)).events[0]
+        if (saved?.type !== 'user/message' || saved.data.id !== requestId || saved.data.content[0]?.type !== 'text'
+          || saved.data.content[0].text !== text) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
+      } finally { await handle.close() }
+    },
+  })
+  const inspection = new DesktopInspectionFacts(transport, { canvas: () => ctx.get('hanaworldsCanvasV5'),
+    revision: () => ctx.get('hanaworldsWorldRevisionOracle') })
+  const build = new DesktopBuildBridge(transport, { canvas: () => ctx.get('hanaworldsCanvasV5'),
+    adapter: () => ctx.get('hanaworldsWorldAdapterV6'), nativeFacts: () => ctx.get('hanaworldsWorldFacts'),
+    canvasRegion: () => ctx.get('hanaworldsCanvasRegionV1'), inspection: () => inspection })
+  ctx.effect(() => () => build.close(), 'HanaWorlds peer dispatch teardown')
+  const views = installDesktopViewBindings(ctx, { identity: `desktop-bridge:${randomUUID()}`,
+    get source() { return ctx.get('hanaworldsCanvasV5')?.source === 'FIXTURE' ? 'FIXTURE' : 'ADAPTER' },
+    currentContext: id => worlds.localContext(id) })
+  const policy = new DesktopDeploymentPolicy({ compiler: () => ctx.get('hanaworldsCompilerConfig') })
+  const readEvents = async (session: import('@deepseek-ai/dsh-session').Session, from: number, count: number) => {
+    const store = persistence()
+    if (!store) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
+    const handle = await store.open(session.id, 'read')
+    try { return (await handle.read(SessionLogOffset(from), count)).events } finally { await handle.close() }
+  }
+  const images = new DesktopImageMedia({ attachments: () => ctx.get('attachments'), readEvents })
+  ctx.provide('hanaworldsCatalogue', { read: (worldRef: string) => build.catalogue(worldRef) })
+  ctx.provide('hanaworldsSafetyProfile', { read: (intent: unknown) => policy.safety(intent) })
+  ctx.provide('hanaworldsWorldInspectionContext', { read: (raw: unknown) => inspection.read(raw) })
+  ctx.provide('hanaworldsPainterLocalFacts', new DesktopPainterFacts(transport, id => worlds.localContext(id)))
+  ctx.provide('hanaworldsCapabilities', validateType('PublicCapabilities', {
+    providerRef: name, capabilityRevision: 'desktop-bridge/v2.0.0', worldRef: null, engineBounds: null,
+    worldGeometry: null, limits: [], recoveryGuarantee: null, stateProfile: null, sessionDeleteSupported: false,
+    model: null, engineGuards: null, imageMediaTypes: desktopImageMediaTypes(ctx.get('attachments')?.imageLimits.mediaTypes ?? []),
+  }))
+  ctx.provide('hanaworldsMediaAuthority', { async verify(input: { sessionRef: string; attachmentRef: string }) {
+    const agent = ctx.get('agents')?.currentInitiator()
+    if (!agent || agent.session.id !== input.sessionRef) throw new Error('AGENT_SESSION_REQUIRED')
+    const check = async () => {
+      if (ctx.get('agents')?.get(agent.id) !== agent || sessions.get(agent.session.id) !== agent.session) throw new Error('AGENT_SESSION_REQUIRED')
+      if (!await sessions.flush(agent.session)) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
+    }
+    await images.read(agent.session, input.attachmentRef, check)
+    return true
+  } })
+  const region = new DesktopRegionPorts({ painter: () => ctx.get('hanaworldsPainterV2PictureBlocks'),
+    brush: () => ctx.get('hanaworldsBrushV3'), canvasRegion: () => ctx.get('hanaworldsCanvasRegionV1'),
+    adapterRegion: () => ctx.get('hanaworldsWorldAdapterRegionV1') })
+  const painter = region.painterPort(), brush = region.brushPort()
+  if (painter) ctx.provide('hanaworldsPainterRegionV1', painter)
+  if (brush) ctx.provide('hanaworldsBrushRegionV1', brush)
+  const workshopBridge: DesktopWorkshopPort = {
+    get contractHandshake() { return ctx.get('hanaworldsWorkshop')?.contractHandshake },
+    get source() { return ctx.get('hanaworldsWorkshop')?.source },
+    call: (operation, request) => transport.dispatch(operation, request, operation === 'AppendMultimodalTurn'),
+  }
+  const submissions = new DesktopSkillSubmission({ agent: session => ctx.get('agents')?.get(session.id),
+    controller: () => ctx.get('sessionController'), flush: session => sessions.flush(session),
+    async open(session) {
+      const store = persistence()
+      if (!store) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
+      return store.open(session.id, 'read')
+    } })
+  const confirm = new DesktopWorkshopConfirmations({ bindings: views, sessions, workshop: () => workshopBridge,
+    runSkill: (session, text, check) => submissions.run(session, text, check),
+    skillPending: session => ctx.get('hanaworldsSkillBusiness')?.pending(session) ?? null })
+  ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy })
+  installRoutes(ctx, { views, confirm, transport, worlds, policy, region: async () => region.status(),
+    async tools() {
+      const workshop = ctx.get('hanaworldsWorkshop') as DomainPort | undefined
+      if (!workshop?.describeWriteTools) throw new Error('WRITE_METHODS_UNAVAILABLE')
+      return { kind: 'WORKSHOP_TOOL_DESCRIPTIONS', writeTools: await workshop.describeWriteTools(null), regionSeams: region.status() }
+    } })
+}
