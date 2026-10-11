@@ -135,6 +135,10 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
       const input = fields(await body(req), ['worldId'])
       return lifecycle.call('describeDelete', { worldId: text(input, 'worldId') })
     },
+    'POST delete': async req => {
+      const input = fields(await body(req), ['worldId', 'confirmationName'])
+      return lifecycle.deleteWorld(text(input, 'worldId'), text(input, 'confirmationName'))
+    },
     'POST play': async req => {
       const input = fields(await body(req), ['worldId'])
       if (!(await lifecycle.call('describe')).canPlay) throw new Error('CAPABILITY_UNAVAILABLE')

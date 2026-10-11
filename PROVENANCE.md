@@ -194,3 +194,20 @@ The module's b1c0549 baseline already registered neutral World services and cont
 `world-lifecycle.ts` uses the SDK's released WorldLifecyclePort and strict correlated validation. `world-inspection-context.ts` supplies C-world-inspection while the existing captured InspectWorld helper remains internal. The fixture counterparty for lifecycle is the released `hanaworlds-contracts/fixtures/world-lifecycle` and `createWorldLifecycleMock`; Core Session, Cordis, WebServer and the U3 Connection owner are actual installed upstream dependencies. Test model/persistence/world peers and U3 credential storage are explicit in-memory component doubles. No actual engine launch, world write, browser product acceptance or account credential is claimed.
 
 U3 reads `@deepseek-ai/dsh-client-connection@0.2.0-rc.2`'s requestRejection, Host/Origin fence and normal launch-token/signed-cookie exchange, together with `@deepseek-ai/dsh-host-webserver@0.2.0-rc.2`'s configured listener. Both are MIT dependencies from deepseek-ai/deepseek-harness. It uses OS-assigned loopback ports and releases all plugin fibers/listeners after the test.
+
+# desktop-bridge-05
+
+Baseline: `08df63a` (desktop-bridge-04 merged). This card continues the D-5 dependency usage of DeepSeek Harness and the pinned `hanaworlds-contracts#v2.3.0`; no upstream modifications, module imports, new dependencies or contract changes are introduced. The SDK's `requireWorldRetirable`, `validateRequest` and `validateBoundResponse` compose the released `ListWorldSelections`, `ReserveWorldRetirement`, `ReleaseWorldRetirement` and lifecycle `describeDelete`/`delete` operations.
+
+`world-lifecycle.ts` owns exact-name product confirmation and supplier capture. `build-bridge.ts` adds an internal world-scoped retirement context because its existing call wrapper otherwise rejects non-build Canvas operations. This context preserves the captured reservation owner's release path when the live registration changes. `routes.ts` exposes only worldId + confirmationName after the existing host request fence. `test/view-fixture.ts` extends the explicit Canvas component double with durable selection inventory, revision checks, reservations and retired-world selection refusal. The lifecycle peer remains the published stateless fixture mock; tests delete no actual world data.
+
+Packages used for this card (unchanged dependency versions):
+
+| Name | Version | License | Source | Use |
+| --- | --- | --- | --- | --- |
+| @deepseek-ai/cordis | 4.0.4 | MIT | https://github.com/deepseek-ai/deepseek-harness | Service composition and captured registration identity |
+| @deepseek-ai/dsh-host-webserver | 0.2.0-rc.2 | MIT | https://github.com/deepseek-ai/deepseek-harness | Existing HTTP route carrier |
+| @deepseek-ai/dsh-session | 0.2.0-rc.2 | MIT | https://github.com/deepseek-ai/deepseek-harness | Real Core Sessions in component route tests |
+| hanaworlds-contracts | 2.3.0 | MIT | https://github.com/yzsnstotz/hanaworlds-contracts/tree/v2.3.0 | Public lifecycle/Canvas request and correlated-response admission, retirement precondition and lifecycle fixture |
+
+Validation is SOURCE/FIXTURE plus local real HTTP/Cordis/Core Session carrier. Real lifecycle deletion, peer assembly, browser UI and owner ACCEPTED are outside this card's component evidence.

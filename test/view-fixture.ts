@@ -11,6 +11,8 @@ export function createViewFixture() {
     worldRef: `FIXTURE/world/${index + 1}`, selectionRevision: 'FIXTURE/selection/1',
   })]))
   const absent = new Set<string>()
+  const reservations = new Map<string, string>()
+  const retired = new Set<string>()
   let generation = 1
   const requests: { operation: string; request: any }[] = []
   return {
@@ -25,10 +27,35 @@ export function createViewFixture() {
         connectionIncarnationRef: `FIXTURE/incarnation/${generation}` }) }
     },
     async call(operation: string, raw: unknown) {
-      if (!['ReadWorldSelectionContext', 'SelectWorldConnection'].includes(operation)) throw new Error('FIXTURE_UNSUPPORTED_CANVAS_OPERATION')
+      if (!['ReadWorldSelectionContext', 'SelectWorldConnection', 'ListWorldSelections', 'ReserveWorldRetirement', 'ReleaseWorldRetirement'].includes(operation)) throw new Error('FIXTURE_UNSUPPORTED_CANVAS_OPERATION')
       const request: any = validateRequest('canvas/v7', operation as never, raw)
       requests.push({ operation, request })
+      const reply = (result: unknown, code?: string) => validateBoundResponse('canvas/v7', operation as never, request, {
+        contractVersion: 'canvas/v7', requestId: request.requestId, result,
+        error: code ? { code, phase: 'validate', retryability: 'AFTER_NEW_FACTS', mutationState: 'NONE',
+          transactionRef: null, causeCode: null, reason: code === 'WORLD_NOT_FOUND' ? 'IDENTITY_UNVERIFIED' : 'SCOPE_DENIED' } : null,
+      })
+      const revision = () => `FIXTURE/inventory/${generation}`
+      // Durable selections survive disconnect/revoke; retirement must include them.
+      const selecting = () => [...contexts].filter(([, context]) => context.worldRef === request.worldRef).map(([id]) => id)
+      if (operation === 'ListWorldSelections') return reply({ worldRef: request.worldRef, inventoryRevision: revision(),
+        sessionRefs: selecting(), retirementReservationRef: reservations.get(request.worldRef) ?? null })
+      if (operation === 'ReserveWorldRetirement') {
+        if (selecting().length || reservations.has(request.worldRef) || request.expectedInventoryRevision !== revision()) return reply(null, 'TRANSACTION_CONFLICT')
+        const reservationRef = `FIXTURE/reservation/${generation}`
+        reservations.set(request.worldRef, reservationRef)
+        return reply({ worldRef: request.worldRef, reservationRef, inventoryRevision: revision() })
+      }
+      if (operation === 'ReleaseWorldRetirement') {
+        if (reservations.get(request.worldRef) !== request.reservationRef) return reply(null, 'TRANSACTION_CONFLICT')
+        reservations.delete(request.worldRef)
+        if (request.outcome === 'RETIRED') retired.add(request.worldRef)
+        generation++
+        return reply({ worldRef: request.worldRef, reservationRef: request.reservationRef, outcome: request.outcome, inventoryRevision: revision() })
+      }
       if (operation === 'SelectWorldConnection') {
+        if (retired.has(request.worldRef)) return reply(null, 'WORLD_NOT_FOUND')
+        if (reservations.has(request.worldRef)) return reply(null, 'TRANSACTION_CONFLICT')
         generation++; absent.delete(request.sessionRef)
         const context = validateType('LocalWorldContext', { connectionRef: request.connectionRef,
           connectionIncarnationRef: request.connectionIncarnationRef, worldRef: request.worldRef,

@@ -65,7 +65,8 @@ export function apply(ctx: Context): void {
   const sessions = ctx.sessions
   const worlds = new DesktopSessionWorlds({ session: id => sessions.get(SessionId(id)),
     workshop: () => ctx.get('hanaworldsWorkshop'), canvas: () => ctx.get('hanaworldsCanvasV5') })
-  const lifecycle = new DesktopWorldLifecycle(() => ctx.get('hanaworldsWorldLifecycle'))
+  const lifecycle = new DesktopWorldLifecycle(() => ctx.get('hanaworldsWorldLifecycle'), () => ctx.get('hanaworldsCanvasV5'),
+    (worldRef, work) => build.runWorldRetirement(worldRef, work))
   const persistence = () => ctx.get('sessionPersistence')
   const transport: DesktopWorkshopTransport = new DesktopWorkshopTransport({
     session: id => sessions.get(SessionId(id)), localContext: id => worlds.localContext(id),
