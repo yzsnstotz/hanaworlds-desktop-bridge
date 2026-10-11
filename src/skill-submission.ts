@@ -1,4 +1,4 @@
-/** Native Workshop inputs use the existing Session Controller and its one AgentLoop. */
+/** Native Workshop inputs use the host Session Controller and its selected model on the existing AgentLoop. */
 import { randomUUID } from 'node:crypto'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionController, SessionRequestId } from '@deepseek-ai/dsh-api-session-controller'
@@ -37,6 +37,7 @@ export class DesktopSkillSubmission {
       if (this.services.agent(session) !== agent || agent.session !== session || serviceIdentity(this.services.controller()) !== serviceIdentity(controller)) fail('SESSION_CHANGED')
     }
     await live()
+    // Routing (including provider, model and reasoning effort) belongs to the host's Session selection.
     await controller.prompt({ requestId, sessionId: session.id, mode: 'queue',
       content: [{ type: 'text', text }] }, new AbortController().signal)
     await agent.whenIdle()
