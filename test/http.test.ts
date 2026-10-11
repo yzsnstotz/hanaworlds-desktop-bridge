@@ -56,9 +56,9 @@ async function setup(t: any, registries = true) {
   // Host-owned selections and a controller boundary spy; no live model requests.
   const modelSelections = new Map(fixtureIds.map(id => [id, { provider: 'fixture-provider', model: `fixture-model-${id}` }]))
   const prompts: { request: any; selection: unknown }[] = []
+  const modelReplies = new Map<string, string>()
   let promptError: Error | undefined
   ctx.provide('agents', { get: (id: string) => agents.get(id), currentInitiator: () => undefined })
-  ctx.provide('hanaworldsSkillBusiness', { pending: (session: any) => workshop.pending(session.id) })
   ctx.provide('sessionController', { async prompt(request: any) {
     prompts.push({ request, selection: modelSelections.get(request.sessionId) })
     if (promptError) throw promptError
@@ -74,6 +74,11 @@ async function setup(t: any, registries = true) {
       contractVersion: 'session/v5', requestId: request.requestId, sessionRef: session.id,
       expectedRevision: snapshot.context.sessionRevision, localContext: context, ...input,
     })
+    const modelReply = modelReplies.get(session.id)
+    if (modelReply) session.append('assistant/message', { turn: 1, step: 1, stream: [], message: {
+      id: `FIXTURE/reply/${request.requestId}`, role: 'assistant', source: { kind: 'model', provider: 'fixture-provider', model: 'fixture-model' },
+      content: [{ type: 'text', text: modelReply }],
+    } }, { surfaceOp: 'append' })
   } })
   const bridgeFiber = await ctx.plugin(plugin)
   const base = `http://127.0.0.1:${ctx.webServer.port}`
@@ -93,7 +98,7 @@ async function setup(t: any, registries = true) {
     return { ...page.data, lease: selected.data.lease }
   }
   return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved,
-    registryReads, registryState, modelSelections, prompts, lifecycle, lifecycleRequests, rejectPrompt(error: Error) { promptError = error } }
+    registryReads, registryState, modelSelections, modelReplies, prompts, lifecycle, lifecycleRequests, rejectPrompt(error: Error) { promptError = error } }
 }
 
 test('Cordis entry registers authenticated HTTP routes and releases services and peer wrappers', async t => {
@@ -237,6 +242,7 @@ test('HTTP prepare and confirm pass real Core user input through the transport i
   assert.equal(confirmed.status, 200, JSON.stringify(confirmed.data))
   assert.equal(confirmed.data.view.pending, null)
   assert.match(confirmed.data.view.turns[0].resultText, /已确认/)
+  assert.equal(confirmed.data.view.turns[0].confirmedBrief, true)
   const mutations = h.workshop.requests.filter(r => ['AppendMultimodalTurn', 'AnswerClarification'].includes(r.operation))
   assert.deepEqual(mutations.map(r => r.operation), ['AppendMultimodalTurn', 'AnswerClarification'])
   for (const { request } of mutations) {
@@ -245,6 +251,100 @@ test('HTTP prepare and confirm pass real Core user input through the transport i
   const inputs = h.saved.get(fixtureIds[0])!.filter(e => e.type === 'user/message')
   assert.deepEqual(inputs.map(e => e.data.content[0].text), ['一个小石屋', '确认'])
   assert.equal((await h.request('/api-hanaworlds-workshop/read', binding)).data.view.turns.length, 1)
+})
+
+test('C-session-only peer exposes the current proposal and admits HTTP confirmation', async t => {
+  const h = await setup(t), binding = await h.bind()
+  const prepared = await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '一个小石屋' })
+  const read = await h.request('/api-hanaworlds-workshop/read', binding)
+  const confirmed = await h.request('/api-hanaworlds-workshop/confirm', binding)
+  assert.equal(prepared.status, 200)
+  assert.ok(read.data.view.pending, 'A published C-session peer must make its pending proposal visible without a private service')
+  assert.equal(confirmed.status, 200, JSON.stringify(confirmed.data))
+  assert.equal(read.data.view.pending.clarificationId, h.workshop.requests.find(r => r.operation === 'AnswerClarification')!.request.clarificationId)
+  assert.equal(confirmed.data.view.pending, null)
+  assert.match(confirmed.data.view.turns[0].resultText, /已确认/)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', binding)).status, 409)
+  assert.equal(h.prompts.length, 2)
+})
+
+test('HTTP confirmation requires a displayed round and refuses a successor round from another page', async t => {
+  const h = await setup(t), a = await h.bind(), b = await h.bind()
+  const first = await h.request('/api-hanaworlds-workshop/prepare', { ...a, text: '第一个提案' })
+  assert.ok(first.data.view.pending)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', b)).status, 409)
+  await h.request('/api-hanaworlds-workshop/read', b)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', b)).status, 200)
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', { ...b, text: '后续提案' })).status, 200)
+  const prompts = h.prompts.length
+  const stale = await h.request('/api-hanaworlds-workshop/confirm', a)
+  assert.equal(stale.status, 409)
+  assert.match(stale.data.error, /ROUND_CHANGED/)
+  assert.equal(h.prompts.length, prompts)
+  const latest = await h.request('/api-hanaworlds-workshop/read', a)
+  assert.notEqual(latest.data.view.pending.clarificationId, first.data.view.pending.clarificationId)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', a)).status, 200)
+})
+
+test('HTTP submission locks the selected Core session across page windows', async t => {
+  const h = await setup(t), a = await h.bind(), b = await h.bind()
+  let release!: () => void, started!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const ready = new Promise<void>(resolve => { started = resolve })
+  h.agents.get(fixtureIds[0])!.whenIdle = async () => { started(); await gate }
+  const preparing = h.request('/api-hanaworlds-workshop/prepare', { ...a, text: '当前提案' })
+  t.after(() => release())
+  await ready
+  try {
+    const duplicate = await h.request('/api-hanaworlds-workshop/prepare', { ...b, text: '同时提交' })
+    assert.equal(duplicate.status, 409)
+    assert.match(duplicate.data.error, /HANAWORLDS_CONFIRM_BUSY/)
+    assert.equal(h.prompts.length, 1)
+  } finally { release() }
+  assert.equal((await preparing).status, 200)
+})
+
+test('HTTP refuses Workshop replacement while the host prompt is running', async t => {
+  const h = await setup(t), binding = await h.bind()
+  h.agents.get(fixtureIds[0])!.whenIdle = async () => { h.ctx.set('hanaworldsWorkshop', { ...h.workshop }) }
+  const prepared = await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '提案' })
+  assert.equal(prepared.status, 409)
+  assert.match(prepared.data.error, /SESSION_OR_CONTEXT_CHANGED/)
+})
+
+test('HTTP dialogue reads the actual durable model proposal and confirmed brief', async t => {
+  const h = await setup(t), binding = await h.bind()
+  h.modelReplies.set(fixtureIds[0], '拟建一个小石屋，请确认。')
+  const prepared = await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '一个小石屋' })
+  assert.equal(prepared.status, 200)
+  assert.equal(prepared.data.view.modelReply, '拟建一个小石屋，请确认。')
+  assert.equal(prepared.data.view.turns[0].confirmedBrief, false)
+  assert.equal((await h.request('/api-hanaworlds-workshop/read', binding)).data.view.modelReply, prepared.data.view.modelReply)
+  h.modelReplies.set(fixtureIds[0], '已收到你的确认。')
+  const confirmed = await h.request('/api-hanaworlds-workshop/confirm', binding)
+  assert.equal(confirmed.status, 200)
+  assert.equal(confirmed.data.view.modelReply, '已收到你的确认。')
+  assert.equal(confirmed.data.view.turns[0].confirmedBrief, true)
+  assert.equal(confirmed.data.view.pending, null)
+  const events = h.saved.get(fixtureIds[0])!
+  assert.deepEqual(events.filter(e => e.type === 'user/message').map(e => e.data.content[0].text), ['一个小石屋', '确认'])
+  assert.deepEqual(events.filter(e => e.type === 'assistant/message').map(e => e.data.message.content[0].text),
+    ['拟建一个小石屋，请确认。', '已收到你的确认。'])
+})
+
+test('HTTP refuses a pending clarification that names a different turn revision', async t => {
+  const h = await setup(t), binding = await h.bind()
+  const call = h.workshop.call
+  h.workshop.call = async (operation, request) => {
+    const packet: any = await call(operation, request)
+    if (operation === 'AppendMultimodalTurn') return { ...packet,
+      result: { ...packet.result, clarification: { ...packet.result.clarification, turnRevision: 'FORGED/revision' } } }
+    return packet
+  }
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '提案' })).status, 409)
+  assert.equal((await h.request('/api-hanaworlds-workshop/read', binding)).data.view.pending, null)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', binding)).status, 409)
+  assert.equal(h.prompts.length, 1)
 })
 
 test('HTTP prepare and confirm delegate routing to the host after its model selection changes', async t => {

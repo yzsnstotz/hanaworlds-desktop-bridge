@@ -48,7 +48,7 @@ export function createWorkshopFixture(canvas: ReturnType<typeof createViewFixtur
       }
       if (operation === 'ReadSessionTurnDetails') return packet({ sessionRef: request.sessionRef, sessionRevision: current.revision,
         turns: current.turns.map(t => ({ turnRef: t.turnRef, turnRevision: t.turnRevision,
-          userText: t.text, resultText: t.resultText, confirmedBrief: null })) })
+          userText: t.text, resultText: t.resultText, confirmedBrief: t.confirmedBrief ?? null })) })
       let turn: any
       if (operation === 'AppendMultimodalTurn') {
         if (current.pending) throw new Error('FIXTURE_PENDING_ROUND')
@@ -61,6 +61,9 @@ export function createWorkshopFixture(canvas: ReturnType<typeof createViewFixtur
         turn = current.turns.at(-1)
         if (!turn || current.pending?.clarificationId !== request.clarificationId || turn.turnRef !== request.turnRef) throw new Error('FIXTURE_WRONG_ROUND')
         turn.resultText = '已确认当前工作坊轮次（FIXTURE）。'; current.pending = null
+        turn.confirmedBrief = { contractVersion: 'ReferenceBrief/v5', sessionRef: request.sessionRef,
+          turnRevision: turn.turnRevision, briefRevision: `FIXTURE/brief/${randomUUID()}`, media: [], text: turn.text,
+          controls: fixtureControls }
       } else throw new Error('FIXTURE_UNSUPPORTED_SESSION_OPERATION')
       current.revision = `FIXTURE/revision/${randomUUID()}`
       return packet({ sessionRef: request.sessionRef, turnRef: turn.turnRef, turnRevision: turn.turnRevision,

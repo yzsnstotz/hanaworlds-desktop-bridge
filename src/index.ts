@@ -44,7 +44,6 @@ declare module '@deepseek-ai/cordis' {
     hanaworldsPainterLocalFacts: DesktopPainterFacts
     hanaworldsCapabilities: import('hanaworlds-contracts').PublicCapabilities
     hanaworldsMediaAuthority: { verify(input: { sessionRef: string; attachmentRef: string }): Promise<boolean> }
-    hanaworldsSkillBusiness: { pending(session: import('@deepseek-ai/dsh-session').Session): { question: string } | null }
     hanaworldsDesktopBridge: {
       transport: DesktopWorkshopTransport
       views: DesktopViewBindings
@@ -150,8 +149,9 @@ export function apply(ctx: Context): void {
       return store.open(session.id, 'read')
     } })
   const confirm = new DesktopWorkshopConfirmations({ bindings: views, sessions, workshop: () => workshopBridge,
+    workshopIdentity: () => serviceIdentity(ctx.get('hanaworldsWorkshop')),
     runSkill: (session, text, check) => submissions.run(session, text, check),
-    skillPending: session => ctx.get('hanaworldsSkillBusiness')?.pending(session) ?? null })
+    pending: (sessionRef, snapshot, context) => transport.pending(sessionRef, snapshot, context) })
   ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy, worlds, lifecycle })
   installRoutes(ctx, { views, confirm, transport, worlds, lifecycle, policy, region: async () => region.status(),
     async tools() {

@@ -4,12 +4,12 @@ import type { Session } from '@deepseek-ai/dsh-session'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { validateRequest, validateBoundResponse } from 'hanaworlds-contracts'
 import { sameLocalContext } from './local-protocol.ts'
-import type { SessionSnapshot, SessionTurnDetails } from 'hanaworlds-contracts'
+import type { ClarificationNeed, LocalWorldContext, SessionSnapshot, SessionTurnDetails } from 'hanaworlds-contracts'
 import { DesktopViewBindings, type DesktopBindingView } from './view-binding.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Workshop-owned public session/v3 port; no plugin-private storage crosses this seam. */
+    /** Workshop-owned public session/v5 port; no plugin-private storage crosses this seam. */
     hanaworldsWorkshop: DesktopWorkshopPort
   }
 }
@@ -32,21 +32,23 @@ export interface DesktopWorkshopView {
     readonly confirmedBrief: boolean
   }[]
   readonly modelReply?: string | null
-  readonly pending: { readonly question: string; readonly userText: string } | null
+  readonly pending: { readonly question: string; readonly userText: string; readonly clarificationId: string; readonly turnRevision: string } | null
 }
 
 interface Services {
   readonly bindings: DesktopViewBindings
   readonly sessions: { get(id: SessionId): Session | undefined }
   readonly workshop: () => DesktopWorkshopPort | undefined
+  readonly workshopIdentity: () => object | undefined
   readonly runSkill: (session: Session, text: string, check: () => Promise<void>) => Promise<string | null>
-  readonly skillPending: (session: Session) => { readonly question: string } | null
+  readonly pending: (sessionRef: string, snapshot: SessionSnapshot, context: LocalWorldContext) => ClarificationNeed | null
 }
 
 interface Trusted {
   readonly view: DesktopBindingView
   readonly session: Session
   readonly port: DesktopWorkshopPort
+  readonly supplier: object
 }
 
 type Operation = 'StartOrResumeSession' | 'ReadSessionTurnDetails'
@@ -77,21 +79,23 @@ async function callWorkshop<T>(port: DesktopWorkshopPort, operation: Operation, 
 /** One Host-process instance; opaque leases and pending rounds never survive restart. */
 export class DesktopWorkshopConfirmations {
   private readonly replies = new Map<string, { trusted: Trusted; reply: string | null }>()
+  private readonly presented = new Map<string, { trusted: Trusted; pending: ClarificationNeed }>()
   private readonly busy = new Set<string>()
 
   constructor(private readonly services: Services) {}
 
-  clear(windowKey: string): void { this.replies.delete(windowKey) }
+  clear(windowKey: string): void { this.replies.delete(windowKey); this.presented.delete(windowKey) }
 
   private async trusted(windowKey: string, lease: string, _action: 'READ' | 'APPEND', expected?: Trusted): Promise<Trusted> {
     const view = await this.services.bindings.read(windowKey, lease)
     const session = this.services.sessions.get(SessionId(view.sessionId))
     if (session === undefined) fail('SESSION_UNAVAILABLE')
     const port = this.services.workshop()
-    if (port === undefined || typeof port.call !== 'function') fail('WORKSHOP_UNAVAILABLE')
+    const supplier = this.services.workshopIdentity()
+    if (port === undefined || !supplier || typeof port.call !== 'function') fail('WORKSHOP_UNAVAILABLE')
     if (expected !== undefined && (!sameView(view, expected.view)
-      || session !== expected.session || port !== expected.port)) fail('SESSION_OR_CONTEXT_CHANGED')
-    return { view, session, port }
+      || session !== expected.session || port !== expected.port || supplier !== expected.supplier)) fail('SESSION_OR_CONTEXT_CHANGED')
+    return { view, session, port, supplier }
   }
 
   private async checked(windowKey: string, lease: string, action: 'READ' | 'APPEND', expected: Trusted): Promise<void> {
@@ -105,11 +109,12 @@ export class DesktopWorkshopConfirmations {
       requestId: randomUUID(), expectedRevision: null,
     })
     await this.checked(windowKey, lease, 'READ', trusted)
-    if (snapshot.context.currentSession !== view.sessionId) fail('WORKSHOP_MISMATCH')
+    if (snapshot.context.currentSession !== view.sessionId || snapshot.context.activeWorldRef !== view.worldRef
+      || !sameLocalContext(snapshot.context.localContext, view.localContext)) fail('WORKSHOP_MISMATCH')
     return snapshot
   }
 
-  private async readBound(trusted: Trusted, windowKey: string, lease: string): Promise<DesktopWorkshopView> {
+  private async readBound(trusted: Trusted, windowKey: string, lease: string, present = true): Promise<DesktopWorkshopView> {
     const snapshot = await this.snapshot(trusted, windowKey, lease)
     const { view, port } = trusted
     const details = await callWorkshop<SessionTurnDetails>(port, 'ReadSessionTurnDetails', {
@@ -124,7 +129,11 @@ export class DesktopWorkshopConfirmations {
         return turn === undefined || item.turnRef !== turn.turnRef
           || item.turnRevision !== turn.turnRevision || item.userText !== turn.text
       })) fail('WORKSHOP_MISMATCH')
-    const pending = this.services.skillPending(trusted.session)
+    const pending = this.services.pending(view.sessionId, snapshot, view.localContext)
+    if (present) {
+      if (pending) this.presented.set(windowKey, { trusted, pending })
+      else this.presented.delete(windowKey)
+    }
     const reply = this.replies.get(windowKey)
     return {
       sessionId: view.sessionId, worldRef: view.worldRef,
@@ -132,8 +141,9 @@ export class DesktopWorkshopConfirmations {
       turns: details.turns.map(item => ({ turnRef: item.turnRef, userText: item.userText,
         resultText: item.resultText, confirmedBrief: item.confirmedBrief !== null })),
       modelReply: reply && reply.trusted.session === trusted.session && reply.trusted.port === port
-        && sameView(reply.trusted.view, view) ? reply.reply : null,
-      pending: pending ? { question: pending.question, userText: details.turns.at(-1)?.userText ?? '' } : null,
+        && reply.trusted.supplier === trusted.supplier && sameView(reply.trusted.view, view) ? reply.reply : null,
+      pending: pending ? { question: pending.question, userText: details.turns.at(-1)?.userText ?? '',
+        clarificationId: pending.clarificationId, turnRevision: pending.turnRevision } : null,
     }
   }
 
@@ -152,16 +162,24 @@ export class DesktopWorkshopConfirmations {
   }
 
   private async submit(windowKey: string, lease: string, text: string, confirmation: boolean): Promise<DesktopWorkshopView> {
-    if (this.busy.has(windowKey)) fail('BUSY')
-    this.busy.add(windowKey)
+    const trusted = await this.trusted(windowKey, lease, 'APPEND')
+    const sessionId = trusted.view.sessionId
+    if (this.busy.has(sessionId)) fail('BUSY')
+    this.busy.add(sessionId)
     try {
-      const trusted = await this.trusted(windowKey, lease, 'APPEND')
-      if (confirmation && !this.services.skillPending(trusted.session)) fail('NO_CURRENT_ROUND')
+      if (confirmation) {
+        const shown = this.presented.get(windowKey)
+        if (!shown) fail('NO_CURRENT_ROUND')
+        await this.checked(windowKey, lease, 'APPEND', shown.trusted)
+        const current = (await this.readBound(trusted, windowKey, lease, false)).pending
+        if (!current || current.clarificationId !== shown.pending.clarificationId
+          || current.turnRevision !== shown.pending.turnRevision || current.question !== shown.pending.question) fail('ROUND_CHANGED')
+      }
       const reply = await this.services.runSkill(trusted.session, text,
         () => this.checked(windowKey, lease, 'APPEND', trusted))
       await this.checked(windowKey, lease, 'APPEND', trusted)
       this.replies.set(windowKey, { trusted, reply })
       return await this.readBound(trusted, windowKey, lease)
-    } finally { this.busy.delete(windowKey) }
+    } finally { this.busy.delete(sessionId) }
   }
 }
