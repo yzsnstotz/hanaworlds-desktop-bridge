@@ -4,6 +4,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-skill'
 import { validateType } from 'hanaworlds-contracts'
 import { DesktopBuildBridge, type DomainPort, type NativeFactsPort } from './build-bridge.ts'
 import { DesktopDeploymentPolicy, type CompilerConfigPort } from './deployment-policy.ts'
@@ -137,8 +139,9 @@ export function apply(ctx: Context): void {
   ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy })
   installRoutes(ctx, { views, confirm, transport, worlds, policy, region: async () => region.status(),
     async tools() {
-      const workshop = ctx.get('hanaworldsWorkshop') as DomainPort | undefined
-      if (!workshop?.describeWriteTools) throw new Error('WRITE_METHODS_UNAVAILABLE')
-      return { kind: 'WORKSHOP_TOOL_DESCRIPTIONS', writeTools: await workshop.describeWriteTools(null), regionSeams: region.status() }
+      const tools = ctx.get('tools'), skills = ctx.get('skills')
+      if (!tools) throw new Error('TOOLS_REGISTRY_UNAVAILABLE')
+      if (!skills) throw new Error('SKILLS_REGISTRY_UNAVAILABLE')
+      return { tools: tools.schemas(), skills: await skills.snapshot() }
     } })
 }
