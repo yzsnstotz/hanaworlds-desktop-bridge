@@ -1,4 +1,4 @@
-/** Host-owned association of a native window, a live Core Session and current local world. */
+/** Plugin-owned association of a page window, a live Core Session and current local world. */
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { validateType, type LocalWorldContext } from 'hanaworlds-contracts'
@@ -25,7 +25,7 @@ interface SelectedView {
   readonly lease: string
 }
 function fail(code: string): never { throw new Error(`HANAWORLDS_VIEW_${code}`) }
-/** A view handle is local UI state; it grants no world operation. */
+/** A page lease captures a live Core Session and exact Canvas connection/selection facts. */
 export class DesktopViewBindings {
   private readonly selected = new Map<string, SelectedView>()
   private readonly generations = new Map<string, number>()

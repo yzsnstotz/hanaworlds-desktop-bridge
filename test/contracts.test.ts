@@ -53,3 +53,19 @@ test('session discovery rejects Core identity replacement while the Workshop rea
   await assert.rejects(worlds.discover(fixtureIds[0]), /SESSION_NOT_FOUND/)
   assert.equal(await worlds.localContext(fixtureIds[0]), null)
 })
+
+test('C-world-inspection provider returns correlated current selection and named errors', async () => {
+  const { DesktopWorldInspectionContext } = await import('../lib/world-inspection-context.js')
+  const canvas = createViewFixture(), workshop = createWorkshopFixture(canvas)
+  const worlds = new DesktopSessionWorlds({ session: id => core[id], canvas: () => canvas, workshop: () => workshop })
+  const provider = new DesktopWorldInspectionContext({ session: id => core[id], canvas: () => canvas })
+  const request = { contractVersion: 'world-inspection/v1', requestId: 'inspection-context-1', sessionRef: fixtureIds[0], worldRef: 'FIXTURE/world/1' }
+  const result = validateBoundResponse('world-inspection/v1', 'ReadInspectionContext', request, await provider.ReadInspectionContext(request))
+  assert.equal(result.error, null)
+  assert.deepEqual(result.result!.localContext, canvas.context(fixtureIds[0]))
+  assert.deepEqual(result.result!.orderedSelectedObjectRefs, [])
+  canvas.act(fixtureIds[0], 'disconnect')
+  assert.equal((await provider.ReadInspectionContext(request)).error!.code, 'WORLD_NOT_BOUND')
+  assert.equal((await provider.ReadInspectionContext({ ...request, sessionRef: 'absent' })).error!.code, 'SESSION_NOT_FOUND')
+  await assert.rejects(provider.ReadInspectionContext({ ...request, actorRef: 'forged' }))
+})

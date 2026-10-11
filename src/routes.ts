@@ -14,12 +14,14 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { DesktopViewBindings } from './view-binding.ts'
 import type { DesktopWorkshopConfirmations } from './workshop-confirm.ts'
 import type { DesktopWorkshopTransport } from './workshop-transport.ts'
+import type { DesktopWorldLifecycle } from './world-lifecycle.ts'
 import type { DesktopSessionWorlds } from './session-worlds.ts'
 import type { DesktopDeploymentPolicy } from './deployment-policy.ts'
 
 export const VIEW_PATH = '/api-hanaworlds-view'
 export const WORKSHOP_PATH = '/api-hanaworlds-workshop'
 export const DEPLOYMENT_PATH = '/api-hanaworlds-deployment'
+export const WORLDS_PATH = '/api-hanaworlds-worlds'
 export const REGION_PATH = '/api-hanaworlds-region'
 /** Request bodies are small JSON objects; anything larger is refused before parsing. */
 const MAX_BODY_BYTES = 64 * 1024
@@ -30,6 +32,7 @@ export interface RouteServices {
   confirm: DesktopWorkshopConfirmations
   transport: DesktopWorkshopTransport
   worlds: DesktopSessionWorlds
+  lifecycle: DesktopWorldLifecycle
   policy: DesktopDeploymentPolicy
   region(): Promise<unknown>
   tools(): Promise<unknown>
@@ -67,6 +70,7 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
   const connection = Reflect.get(ctx, 'connection') as Connection
   /** Window keys the plugin issued; a binding exists only under a key from this set. */
   const windows = new Set<string>()
+  const generations = new Map<string, number>()
   const windowKey = (input: Record<string, unknown>): string => {
     const key = text(input, 'windowKey')
     if (!windows.has(key)) throw new RequestError(404, 'WINDOW_KEY_UNKNOWN: ask POST /api-hanaworlds-view/window for a key first')
@@ -85,31 +89,96 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
       }
     } }), `hanaworlds-desktop-bridge: ${path}`)
 
-  const { views, confirm, transport, worlds, policy } = services
+  const { views, confirm, transport, worlds, lifecycle, policy } = services
   ctx.effect(() => () => {
     for (const key of windows) { views.clear(key); confirm.clear(key) }
-    windows.clear()
+    windows.clear(); generations.clear()
   }, 'HanaWorlds view teardown')
+  const invalidate = (key: string) => {
+    generations.set(key, (generations.get(key) ?? 0) + 1)
+    views.clear(key); confirm.clear(key)
+  }
+  const begin = (key: string) => {
+    invalidate(key)
+    const generation = generations.get(key)
+    return async () => {
+      if (!windows.has(key) || generations.get(key) !== generation) throw new Error('HANAWORLDS_VIEW_STALE_VIEW')
+    }
+  }
+  const publish = async (key: string, sessionId: string, check: () => Promise<void>) => {
+    await check()
+    const lease = await views.select(key, sessionId)
+    try {
+      await check()
+      await transport.bindCurrentWorld(sessionId, async () => { await check(); await views.read(key, lease) })
+      await check()
+      const view = await views.read(key, lease)
+      return { lease, sessionId, worldRef: view.worldRef, localContext: view.localContext, noLiveBinding: false }
+    } catch (error) {
+      // A stale request must never clear a successor's lease.
+      try { await check(); views.clear(key); confirm.clear(key) } catch {}
+      throw error
+    }
+  }
+  const fields = (input: Record<string, unknown>, allowed: readonly string[]) => {
+    if (Object.keys(input).some(key => !allowed.includes(key))) bad('UNKNOWN_FIELD')
+    return input
+  }
+  route(WORLDS_PATH, {
+    'GET describe': async () => lifecycle.call('describe'),
+    'GET list': async () => lifecycle.call('list'),
+    'POST create': async req => {
+      const input = fields(await body(req), ['templateId', 'displayName'])
+      return lifecycle.call('create', { templateId: text(input, 'templateId'), displayName: text(input, 'displayName') })
+    },
+    'POST describe-delete': async req => {
+      const input = fields(await body(req), ['worldId'])
+      return lifecycle.call('describeDelete', { worldId: text(input, 'worldId') })
+    },
+    'POST play': async req => {
+      const input = fields(await body(req), ['worldId'])
+      if (!(await lifecycle.call('describe')).canPlay) throw new Error('CAPABILITY_UNAVAILABLE')
+      return lifecycle.call('play', { worldId: text(input, 'worldId') })
+    },
+    'POST context': async req => {
+      const input = fields(await body(req), ['windowKey', 'sessionId'])
+      windowKey(input)
+      return worlds.context(text(input, 'sessionId'))
+    },
+    'POST connect': async req => {
+      const input = fields(await body(req), ['windowKey', 'sessionId', 'worldId'])
+      const key = windowKey(input), sessionId = text(input, 'sessionId'), worldId = text(input, 'worldId'), check = begin(key)
+      await worlds.connect(sessionId, worldId, lifecycle, check)
+      return publish(key, sessionId, check)
+    },
+    'POST stop': async req => {
+      const input = fields(await body(req), ['windowKey', 'lease']), key = windowKey(input)
+      const generation = generations.get(key)
+      const view = await views.read(key, text(input, 'lease'))
+      const stopped = await lifecycle.call('stop', { connectionRef: view.localContext.connectionRef })
+      if (windows.has(key) && generations.get(key) === generation) invalidate(key)
+      return stopped
+    },
+  })
   route(VIEW_PATH, {
     'POST window': async () => { const key = randomUUID(); windows.add(key); return { windowKey: key } },
     'GET candidates': async () => ({ candidates: views.candidates() }),
     'POST select': async (req) => {
       const input = await body(req), key = windowKey(input), sessionId = text(input, 'sessionId')
+      const check = begin(key)
       await worlds.discover(sessionId)
-      const lease = await views.select(key, sessionId)
-      try { await transport.bindCurrentWorld(sessionId, async () => { await views.read(key, lease) }) }
-      catch (error) { views.clear(key); throw error }
-      return { lease, sessionId }
+      await check()
+      return publish(key, sessionId, check)
     },
     'POST read': async (req) => { const input = await body(req); return { view: await views.read(windowKey(input), text(input, 'lease')) } },
     'POST clear': async (req) => {
       const key = windowKey(await body(req))
-      views.clear(key); confirm.clear(key)
+      invalidate(key)
       return { cleared: true }
     },
     'POST close': async (req) => {
       const key = windowKey(await body(req))
-      views.clear(key); confirm.clear(key); windows.delete(key)
+      invalidate(key); windows.delete(key); generations.delete(key)
       return { closed: true }
     },
   })

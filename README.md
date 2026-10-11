@@ -11,11 +11,13 @@ npm run typecheck
 
 `npm test` first builds the exported `lib/index.js` entry. Run `npm run build` before installing the plugin in a host. Node >=24.13.1 is required.
 
-The published dependency is pinned to `hanaworlds-contracts#v2.0.0`. The verifier checks the public tag against the lock's commit, the installed SDK version/handshake, and correlated session/v5 and canvas/v7 fixture roundtrips. The fixtures under `test/` are explicit component peers adapted from the source workshop/view fixtures. Their model and persistence are simulated; HTTP, Cordis and Core Session are real.
+The published dependency is pinned to `hanaworlds-contracts#v2.3.0`. The verifier checks the public tag against the lock's commit, the installed SDK version/handshake, and correlated session/v5, canvas/v7 and world-lifecycle/v2 fixture roundtrips. The fixtures under `test/` are explicit component peers adapted from the source workshop/view fixtures. Their model and persistence are simulated; HTTP, Cordis and Core Session are real.
 
 ## Composition services
 
 Required: `webServer`, `connection` (the host's `requestRejection` login and Host/Origin boundary), `sessions`, `hanaworldsWorkshop` (session/v5), `hanaworldsCanvasV5` (canvas/v7). These names identify existing service registrations; their historical suffixes do not select wire versions.
+
+Lifecycle consumer: `hanaworldsWorldLifecycle`, implementing the released `WorldLifecyclePort` methods. `describe`, `list`, `create`, `launch`, `stop`, `describeDelete` and `play` use `world-lifecycle/v2`; missing lifecycle methods return `ADAPTER_UNAVAILABLE`. Templates, names, prerequisites and opaque creationFacts come from the source. The create route returns creationFacts unchanged for the skill's input; it interprets no source setting.
 
 Optional consumers: `agents`, `sessionController`, `sessionPersistence` for standard human prompt submission and durable Core inputs; `attachments` for images; `hanaworldsWorldAdapterV6`, `hanaworldsWorldFacts`, `hanaworldsWorldRevisionOracle`, `hanaworldsCompilerConfig`, and the existing Painter/Brush/Canvas/Adapter region services. Missing suppliers produce named gaps. The plugin does not launch a model, choose a model/provider, generate engine configuration or invent material data.
 
@@ -25,16 +27,27 @@ Prepare and Confirm submit only user input to the host's `sessionController.prom
 
 Providers: `hanaworldsDesktopBridge` (transport, view bindings, confirmations, image reader and deployment policy), `hanaworldsCatalogue`, `hanaworldsSafetyProfile`, `hanaworldsCapabilities`, `hanaworldsWorldInspectionContext`, `hanaworldsPainterLocalFacts`, `hanaworldsMediaAuthority`. Painter/Brush region ports are provided only when the peer publishes the corresponding methods and handshake. Fiber unload removes services/routes, invalidates active view handles, and restores wrapped peer calls.
 
-In v2.0.0, Canvas owns `hanaworldsCompilerConfig`; this bridge consumes and relays it without shadowing the service. Safety profiles derive from confirmed intents. Avatar facts remain the published `UNAVAILABLE/NO_PUBLIC_SOURCE` record. `hanaworldsWorldInspectionContext.read` exposes only captured facts for the existing InspectWorld invocation; it does not implement the future ReadInspectionContext operation.
+In v2.0.0, Canvas owns `hanaworldsCompilerConfig`; this bridge consumes and relays it without shadowing the service. Safety profiles derive from confirmed intents. Avatar facts remain the published `UNAVAILABLE/NO_PUBLIC_SOURCE` record. `hanaworldsWorldInspectionContext.ReadInspectionContext` provides the correlated `world-inspection/v1` operation with current Canvas session/world/object selection and the named `SESSION_NOT_FOUND` / `WORLD_NOT_BOUND` errors. Its internal `read` helper supplies the captured facts used by the existing InspectWorld invocation.
+
+A minimal inspection consumer request (the world/source peer calls this in process):
+
+```ts
+await ctx.hanaworldsWorldInspectionContext.ReadInspectionContext({
+  contractVersion: 'world-inspection/v1', requestId: 'inspection-example',
+  sessionRef: 'selected-core-session', worldRef: 'selected-world',
+})
+```
+
+The response echoes requestId and has result XOR error. The minimal component counterparty is `createViewFixture()` in `test/view-fixture.ts`; `test/contracts.test.ts` covers the successful selection and both declared errors with the actual provider.
 
 ## IPC / preload to HTTP mapping
 
-Every route uses the host's request rejection policy. JSON bodies are bounded to 64 KiB. Returned page keys and view handles are component-local state; page-window product leases and U3 validation belong to desktop-bridge-04.
+Every route uses the host's request rejection policy. JSON bodies are bounded to 64 KiB. The plugin mints page-window keys and binds each lease to a live Core Session, the actual Canvas registration, and all LocalWorldContext fields. Clear, close, reselect, context/incarnation changes and supplier replacement invalidate the old lease. A lease from another page key is rejected; unload/restart drops all page state. No native chooser is needed.
 
 | Source host-process message / preload call | Plugin HTTP |
 | --- | --- |
-| view-candidates / native chooser candidates | GET `/api-hanaworlds-view/candidates` |
-| native BrowserWindow identifier | POST `/api-hanaworlds-view/window` → component page handle |
+| Page Session candidates | GET `/api-hanaworlds-view/candidates` |
+| Open page window | POST `/api-hanaworlds-view/window` → page-window key |
 | view-select / choose selected Session | POST `/api-hanaworlds-view/select` `{windowKey,sessionId}` → `{lease,sessionId}` |
 | view-read / current | POST `/api-hanaworlds-view/read` `{windowKey,lease}` |
 | view-clear / clear selection | POST `/api-hanaworlds-view/clear` `{windowKey}` |
@@ -47,6 +60,25 @@ Every route uses the host's request rejection policy. JSON bodies are bounded to
 | region seam diagnostics | GET `/api-hanaworlds-region` |
 | Host tool schemas and skill catalog snapshot | GET `/api-hanaworlds-skill-tools` |
 
+World product routes (all under the same upstream login and Host/Origin fence):
+
+| Method / route | Input / result |
+| --- | --- |
+| GET `/api-hanaworlds-worlds/describe` | Source templates, prerequisites and supported actions |
+| GET `/api-hanaworlds-worlds/list` | Source world inventory |
+| POST `/api-hanaworlds-worlds/create` | `{templateId,displayName}` → full created record, opaque creationFacts |
+| POST `/api-hanaworlds-worlds/connect` | `{windowKey,sessionId,worldId}` → `{lease,sessionId,worldRef,localContext,noLiveBinding:false}` |
+| POST `/api-hanaworlds-worlds/context` | `{windowKey,sessionId}` → worldRef, localContext or null, noLiveBinding |
+| POST `/api-hanaworlds-worlds/stop` | `{windowKey,lease}` → source stop result for the captured connection |
+| POST `/api-hanaworlds-worlds/describe-delete` | `{worldId}` → source confirmation name and impacts |
+| POST `/api-hanaworlds-worlds/play` | `{worldId}` → source result, only when canPlay is true |
+
+Connect launches via C-world-lifecycle, selects the returned world/connection/incarnation via C-canvas, synchronizes C-session, then publishes the page lease. The caller cannot supply connection or authorization fields. A stopped/disconnected selection stays visible through `context` with `noLiveBinding:true`; it cannot authorize Workshop work. A failed connect publishes no lease. A launch or Canvas selection already completed before a later failure remains a source/Canvas fact; the bridge performs no automatic destructive rollback. The caller can inspect the world inventory and context before an explicit next action.
+
+World deletion remains gated for desktop-bridge-05's Canvas retirement check. No delete HTTP route or unchecked lifecycle delete is exposed. There are no engine-specific createFlat/luantiContent verbs or hanaworldsLuanti service aliases in this plugin.
+
+`test/u3.test.ts` reads the real installed upstream WebServer/Connection services and exercises this machine's `127.0.0.1` on an OS-assigned port. It exchanges the isolated host's normal launch token for a signed cookie, exercises page lease routes, and rejects missing/bad cookies, foreign Host/Origin and another cookie authority. The credential store and world peers are explicit in-memory doubles. This validates local carrier/authentication; real engine, browser product assembly and owner acceptance are separate gates.
+
 The invoke body contains interaction input, for example:
 
 ```json
@@ -57,4 +89,4 @@ The transport derives protocol version, sessionRef, worldRef and localContext fr
 
 ## Component scope
 
-desktop-bridge-01 delivers the extraction, standalone plugin, these route adapters, published SDK adaptation and tests. It does not implement new unpublished operations. contracts-03/04 publish those; desktop-bridge-04 supplies lifecycle/world-pairing and page-window leases, -05 deletion concurrency, -08 full ReadWriteProfile/ReadInspectionContext, and -09/-11 object history and undo/redo product routes. Existing internal build/inspection/region helpers are preserved; fixture confirmation is not real world mutation or owner acceptance.
+desktop-bridge-01 delivers the extraction, standalone plugin, these route adapters, published SDK adaptation and tests. It does not implement new unpublished operations. desktop-bridge-04 adds published lifecycle/world-pairing, page-window leases, ReadInspectionContext and U3. desktop-bridge-05 owns deletion concurrency, -08 full ReadWriteProfile and source-facts assembly, and -09/-11 object history and undo/redo product routes. Existing internal build/inspection/region helpers are preserved; fixture confirmation is not real world mutation or owner acceptance.

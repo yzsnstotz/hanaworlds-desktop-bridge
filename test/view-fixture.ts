@@ -25,9 +25,21 @@ export function createViewFixture() {
         connectionIncarnationRef: `FIXTURE/incarnation/${generation}` }) }
     },
     async call(operation: string, raw: unknown) {
-      if (operation !== 'ReadWorldSelectionContext') throw new Error('FIXTURE_UNSUPPORTED_CANVAS_OPERATION')
-      const request = validateRequest('canvas/v7', operation, raw)
+      if (!['ReadWorldSelectionContext', 'SelectWorldConnection'].includes(operation)) throw new Error('FIXTURE_UNSUPPORTED_CANVAS_OPERATION')
+      const request: any = validateRequest('canvas/v7', operation as never, raw)
       requests.push({ operation, request })
+      if (operation === 'SelectWorldConnection') {
+        generation++; absent.delete(request.sessionRef)
+        const context = validateType('LocalWorldContext', { connectionRef: request.connectionRef,
+          connectionIncarnationRef: request.connectionIncarnationRef, worldRef: request.worldRef,
+          selectionRevision: `FIXTURE/selection/${generation}` })
+        contexts.set(request.sessionRef, context)
+        return validateBoundResponse('canvas/v7', 'SelectWorldConnection', request, {
+          contractVersion: 'canvas/v7', requestId: request.requestId, error: null,
+          result: { currentSession: request.sessionRef, activeWorldRef: context.worldRef, orderedSelectedObjectRefs: [],
+            sessionRevision: request.expectedRevision, selectionRevision: context.selectionRevision, localContext: context },
+        })
+      }
       const context = this.context(request.sessionRef)
       const selection = context && context.worldRef === request.worldRef
         ? { status: 'BOUND', connectionRef: context.connectionRef, context: {

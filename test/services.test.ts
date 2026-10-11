@@ -106,3 +106,12 @@ test('inspection recognizes unchanged Canvas and revision-oracle registrations t
     await assert.rejects(Promise.resolve().then(() => facts.read(request)), /INSPECTION_FACTS_UNAVAILABLE/)
   } finally { await oracleFiber.dispose(); await canvasFiber.dispose() }
 })
+
+test('lifecycle delete is unavailable before the bridge retirement gate and missing sources never invent defaults', async () => {
+  const { DesktopWorldLifecycle } = await import('../lib/world-lifecycle.js')
+  let calls = 0
+  const port = new DesktopWorldLifecycle(() => ({ async delete() { calls++; return {} } } as any))
+  await assert.rejects(port.call('delete' as never, { worldId: 'world', confirmationName: 'World' }), /TRANSACTION_CONFLICT/)
+  assert.equal(calls, 0)
+  await assert.rejects(new DesktopWorldLifecycle(() => undefined).call('describe'), /ADAPTER_UNAVAILABLE/)
+})

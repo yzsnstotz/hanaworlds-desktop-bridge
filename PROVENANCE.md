@@ -185,3 +185,12 @@ d1b8d7a705 2026-10-05 feat(hanaworlds): confirm Workshop rounds in trusted Core 
 ac884bdbe8 2026-10-05 Bind HanaWorlds Desktop views to trusted Core Sessions
 4932a4da4e 2026-10-05 Import DeepSeek Harness dsh-v0.2.0-rc.2 source snapshot
 ```
+
+
+# desktop-bridge-04
+
+The module's b1c0549 baseline already registered neutral World services and contained no hanaworldsLuanti*, createFlat or luantiContent source identifiers. This card preserves those neutral service names and adds a source-owned `hanaworldsWorldLifecycle` consumer, `world-lifecycle/v2` routes and product pairing without reading or importing peer modules. The exact published dependency is `hanaworlds-contracts#v2.3.0` (f89b05f61f5db79c32c6d63b3ea5c3b79c5c53ef).
+
+`world-lifecycle.ts` uses the SDK's released WorldLifecyclePort and strict correlated validation. `world-inspection-context.ts` supplies C-world-inspection while the existing captured InspectWorld helper remains internal. The fixture counterparty for lifecycle is the released `hanaworlds-contracts/fixtures/world-lifecycle` and `createWorldLifecycleMock`; Core Session, Cordis, WebServer and the U3 Connection owner are actual installed upstream dependencies. Test model/persistence/world peers and U3 credential storage are explicit in-memory component doubles. No actual engine launch, world write, browser product acceptance or account credential is claimed.
+
+U3 reads `@deepseek-ai/dsh-client-connection@0.2.0-rc.2`'s requestRejection, Host/Origin fence and normal launch-token/signed-cookie exchange, together with `@deepseek-ai/dsh-host-webserver@0.2.0-rc.2`'s configured listener. Both are MIT dependencies from deepseek-ai/deepseek-harness. It uses OS-assigned loopback ports and releases all plugin fibers/listeners after the test.
