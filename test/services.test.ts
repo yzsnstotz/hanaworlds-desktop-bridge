@@ -1,21 +1,80 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { contractProtocols, regionCapabilities, contractHandshake, validateBoundResponse } from 'hanaworlds-contracts'
+import { contractProtocols, regionCapabilities, contractHandshake, validateBoundResponse, validateType } from 'hanaworlds-contracts'
 import { DesktopDeploymentPolicy } from '../lib/deployment-policy.js'
 import { DesktopRegionPorts } from '../lib/region-ports.js'
 import { DesktopImageMedia, serviceIdentity } from '../lib/image-media.js'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { DesktopBuildBridge } from '../lib/build-bridge.js'
 import { DesktopInspectionFacts } from '../lib/inspection-facts.js'
+import { createWriteProfileFixture } from './world-facts-fixture.ts'
 
-test('deployment relays its compiler supplier unchanged without an engine default or backend table', async () => {
-  const declared = { writeBackend: { profileId: 'OPAQUE/backend', revision: 'opaque-revision' } }
-  let observed: string | undefined
-  const policy = new DesktopDeploymentPolicy({ compiler: () => ({ async read(worldRef) { observed = worldRef; return declared } }) })
-  assert.equal(await policy.compiler('fixture-world'), declared)
-  assert.equal(observed, 'fixture-world')
-  assert.equal((await policy.describe('fixture-world')).compilerConfig.value, declared)
+test('deployment relays a complete world-source write profile, including opaque backend and declared avatar', async () => {
+  const source = createWriteProfileFixture()
+  const backend = { profileId: 'OPAQUE/custom-source', revision: 'custom-revision' }
+  source.profile = validateType('WriteProfile', { ...source.profile,
+    writeBackend: { ...source.profile.writeBackend, writeBackend: backend },
+    compilationConfig: { ...source.profile.compilationConfig, writeBackend: backend },
+    writeMethods: ['REGION'],
+    avatarEnvelope: { availability: 'KNOWN', basis: 'WORLD_SOURCE_DECLARATION', size: { width: 2, height: 3, depth: 4 } },
+  })
+  const policy = new DesktopDeploymentPolicy({ facts: () => source })
+  const description = await policy.describe('fixture-world')
+  assert.deepEqual(description.writeProfile.value, source.profile)
+  assert.deepEqual(description.compilerConfig.value, source.profile.compilationConfig)
+  assert.deepEqual(description.writeMethods.value, source.profile.writeMethods)
+  assert.deepEqual(description.fixed[0].value, source.profile.avatarEnvelope)
+  assert.equal(source.requests.length, 1, 'one source snapshot for the whole description')
+  assert.deepEqual(await policy.compiler('fixture-world'), source.profile.compilationConfig)
+  assert.equal((source.requests[0] as any).worldRef, 'fixture-world')
   assert.throws(() => policy.safety('fixture-world'))
+})
+
+test('deployment preserves undeclared facts without substituting a config, method or body envelope', async () => {
+  const source = createWriteProfileFixture(true), policy = new DesktopDeploymentPolicy({ facts: () => source })
+  const description = await policy.describe('fixture-world')
+  assert.deepEqual(description.writeProfile.value, source.profile)
+  assert.equal(description.compilerConfig.value, null)
+  assert.equal(description.compilerConfig.error, null)
+  assert.deepEqual(description.writeMethods.value, [])
+  assert.deepEqual(description.fixed[0].value, source.profile.avatarEnvelope)
+  await assert.rejects(policy.compiler('fixture-world'), /CAPABILITY_UNAVAILABLE/)
+})
+
+test('deployment reports missing sources, missing named reads and declared errors without inventing facts', async () => {
+  await assert.rejects(new DesktopDeploymentPolicy({ facts: () => undefined }).writeProfile('fixture-world'), /ADAPTER_UNAVAILABLE/)
+  await assert.rejects(new DesktopDeploymentPolicy({ facts: () => ({}) }).writeProfile('fixture-world'), /CAPABILITY_UNAVAILABLE/)
+  const source = createWriteProfileFixture(), policy = new DesktopDeploymentPolicy({ facts: () => source })
+  for (const code of ['ADAPTER_UNAVAILABLE', 'CAPABILITY_UNAVAILABLE'] as const) {
+    source.error = code
+    await assert.rejects(policy.writeProfile('fixture-world'), new RegExp(code))
+    const description = await policy.describe('fixture-world')
+    assert.equal(description.writeProfile.value, null)
+    assert.equal(description.fixed[0].value, null)
+  }
+  const calls = source.requests.length
+  const unbound = await policy.describe(null)
+  assert.match(unbound.writeProfile.error!, /WORLD_NOT_BOUND/)
+  assert.equal(source.requests.length, calls)
+})
+
+test('deployment rejects incompatible, uncorrelated and foreign-world source responses', async () => {
+  const source = createWriteProfileFixture()
+  const policy = (port: any) => new DesktopDeploymentPolicy({ facts: () => port })
+  await assert.rejects(policy({ ...source, contractHandshake: { ...source.contractHandshake, wireVersions: [] } }).writeProfile('fixture-world'))
+  for (const change of [(r: any) => ({ ...r, requestId: 'foreign-request' }),
+    (r: any) => ({ ...r, result: { ...r.result, connection: { ...r.result.connection, worldRef: 'foreign-world' } } })]) {
+    await assert.rejects(policy({ ...source, async call(op: string, raw: unknown) { return change(await source.call(op, raw)) } }).writeProfile('fixture-world'))
+  }
+})
+
+test('deployment refuses a world source replaced during the read', async () => {
+  const source = createWriteProfileFixture()
+  let live = source
+  const policy = new DesktopDeploymentPolicy({ facts: () => live })
+  const call = source.call.bind(source)
+  source.call = async (op, raw) => { const response = await call(op, raw); live = createWriteProfileFixture(); return response }
+  await assert.rejects(policy.writeProfile('fixture-world'), /ADAPTER_UNAVAILABLE/)
 })
 
 test('region ports admit published wire capabilities, constrain operations, and reject replaced providers', async () => {

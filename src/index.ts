@@ -8,7 +8,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-skill'
 import { validateType } from 'hanaworlds-contracts'
 import { DesktopBuildBridge, type DomainPort, type NativeFactsPort } from './build-bridge.ts'
-import { DesktopDeploymentPolicy, type CompilerConfigPort } from './deployment-policy.ts'
+import { DesktopDeploymentPolicy, type CompilerConfigPort, type WriteProfilePort } from './deployment-policy.ts'
 import { DesktopWorldInspectionContext } from './world-inspection-context.ts'
 import { DesktopInspectionFacts } from './inspection-facts.ts'
 import { DesktopPainterFacts } from './painter-facts.ts'
@@ -27,9 +27,9 @@ declare module '@deepseek-ai/cordis' {
     hanaworldsWorldLifecycle: import('hanaworlds-contracts').WorldLifecyclePort
     hanaworldsCanvasV5: DomainPort
     hanaworldsWorldAdapterV6: DomainPort
-    /** Existing v2.0.0 in-process facts supplier; not a new C-world-facts wire. */
-    hanaworldsWorldFacts: NativeFactsPort
-    /** Owned by Canvas in published v2.0.0. The bridge consumes, never shadows it. */
+    /** World-source facts, including the named C-world-facts reads when advertised by the source. */
+    hanaworldsWorldFacts: NativeFactsPort & Partial<WriteProfilePort>
+    /** Bridge projection of the complete ReadWriteProfile compilationConfig. */
     hanaworldsCompilerConfig: CompilerConfigPort
     hanaworldsWorldRevisionOracle: { read(worldRef: string): Promise<unknown> }
     hanaworldsPainterV2PictureBlocks: PainterRegionEntry
@@ -101,7 +101,7 @@ export function apply(ctx: Context): void {
     },
     get source() { return ctx.get('hanaworldsCanvasV5')?.source === 'FIXTURE' ? 'FIXTURE' : 'ADAPTER' },
     currentContext: id => worlds.localContext(id) })
-  const policy = new DesktopDeploymentPolicy({ compiler: () => ctx.get('hanaworldsCompilerConfig') })
+  const policy = new DesktopDeploymentPolicy({ facts: () => ctx.get('hanaworldsWorldFacts') })
   const readEvents = async (session: import('@deepseek-ai/dsh-session').Session, from: number, count: number) => {
     const store = persistence()
     if (!store) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
@@ -110,6 +110,7 @@ export function apply(ctx: Context): void {
   }
   const images = new DesktopImageMedia({ attachments: () => ctx.get('attachments'), readEvents })
   ctx.provide('hanaworldsCatalogue', { read: (worldRef: string) => build.catalogue(worldRef) })
+  ctx.provide('hanaworldsCompilerConfig', { read: (worldRef: string) => policy.compiler(worldRef) })
   ctx.provide('hanaworldsSafetyProfile', { read: (intent: unknown) => policy.safety(intent) })
   const inspectionContext = new DesktopWorldInspectionContext({ session: id => sessions.get(SessionId(id)),
     canvas: () => ctx.get('hanaworldsCanvasV5') })
