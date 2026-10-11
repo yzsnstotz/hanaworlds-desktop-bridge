@@ -69,3 +69,24 @@ test('C-world-inspection provider returns correlated current selection and named
   assert.equal((await provider.ReadInspectionContext({ ...request, sessionRef: 'absent' })).error!.code, 'SESSION_NOT_FOUND')
   await assert.rejects(provider.ReadInspectionContext({ ...request, actorRef: 'forged' }))
 })
+
+test('neutral inspection context preserves ordered objects and refuses replaced selection suppliers', async () => {
+  const { DesktopWorldInspectionContext } = await import('../lib/world-inspection-context.js')
+  const source = createViewFixture(), session = {}
+  const call = source.call.bind(source)
+  source.call = async (operation, raw) => {
+    const response = await call(operation, raw)
+    return { ...response, result: { ...response.result, selection: { ...response.result!.selection,
+      context: { ...(response.result!.selection as any).context, orderedSelectedObjectRefs: ['object-b', 'object-a'] } } } }
+  }
+  let live = source, current: object | undefined = session
+  const provider = new DesktopWorldInspectionContext({ session: () => current, canvas: () => live })
+  const request = { contractVersion: 'world-inspection/v1', requestId: 'ordered-inspection', sessionRef: fixtureIds[0], worldRef: 'FIXTURE/world/1' }
+  assert.deepEqual((await provider.ReadInspectionContext(request)).result!.orderedSelectedObjectRefs, ['object-b', 'object-a'])
+  const selectedCall = source.call.bind(source)
+  source.call = async (operation, raw) => { const response = await selectedCall(operation, raw); live = createViewFixture(); return response }
+  assert.equal((await provider.ReadInspectionContext(request)).error!.code, 'WORLD_NOT_BOUND')
+  live = source
+  source.call = async (operation, raw) => { const response = await selectedCall(operation, raw); current = undefined; return response }
+  assert.equal((await provider.ReadInspectionContext(request)).error!.code, 'SESSION_NOT_FOUND')
+})

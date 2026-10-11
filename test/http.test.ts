@@ -10,6 +10,7 @@ import { createWorldLifecycleMock, validateType } from 'hanaworlds-contracts'
 import * as plugin from 'hanaworlds-desktop-bridge'
 import { createViewFixture, fixtureIds } from './view-fixture.ts'
 import { createWorkshopFixture, fixtureControls } from './workshop-fixture.ts'
+import { createWriteProfileFixture } from './world-facts-fixture.ts'
 
 /** Real Cordis + Core Session + HTTP carrier; model, Canvas and persistence are explicit test peers. */
 async function setup(t: any, registries = true) {
@@ -110,10 +111,13 @@ test('Cordis entry registers authenticated HTTP routes and releases services and
   validateType('PublicCapabilities', h.ctx.hanaworldsCapabilities)
   assert.ok(h.ctx.hanaworldsPainterLocalFacts)
   assert.ok(h.ctx.hanaworldsWorldInspectionContext)
+  assert.ok(h.ctx.hanaworldsCompilerConfig)
   assert.deepEqual((await h.request('/api-hanaworlds-skill-tools')).data, { tools: [], skills: { skills: [], complete: true } })
   await h.bridgeFiber.dispose()
   assert.equal(h.ctx.get('hanaworldsDesktopBridge'), undefined)
   assert.equal(h.ctx.get('hanaworldsCatalogue'), undefined)
+  assert.equal(h.ctx.get('hanaworldsCompilerConfig'), undefined)
+  assert.equal(h.ctx.get('hanaworldsWorldInspectionContext'), undefined)
   assert.equal(h.canvas.call, h.originalCanvasCall)
   assert.equal((await h.request('/api-hanaworlds-view/candidates')).status, 404)
 })
@@ -444,15 +448,35 @@ test('confirm refuses busy Agents and rejects a changed view while a human promp
   assert.equal((await h.request('/api-hanaworlds-workshop/confirm', binding)).status, 409)
 })
 
-test('deployment keeps UNAVAILABLE source facts and missing region peers visible', async t => {
+test('deployment reports the missing world source without manufacturing avatar facts', async t => {
   const h = await setup(t), binding = await h.bind()
   const description = (await h.request('/api-hanaworlds-deployment', binding)).data
   assert.equal(description.compilerConfig.value, null)
-  assert.match(description.compilerConfig.error, /COMPILER_CONFIG_UNAVAILABLE/)
-  assert.deepEqual(description.fixed[0].value, { availability: 'UNAVAILABLE', reason: 'NO_PUBLIC_SOURCE' })
+  assert.match(description.compilerConfig.error, /ADAPTER_UNAVAILABLE/)
+  assert.equal(description.writeProfile.value, null)
+  assert.equal(description.fixed[0].value, null)
   const seams = (await h.request('/api-hanaworlds-region')).data
   assert.equal(seams.length, 4)
   assert.ok(seams.every((s: any) => !s.compatible && s.unmet.code === 'PEER_UNAVAILABLE'))
+})
+
+test('Cordis deployment HTTP and compiler service relay full source snapshots and undeclared facts', async t => {
+  const h = await setup(t), binding = await h.bind()
+  for (const unavailable of [false, true]) {
+    const source = createWriteProfileFixture(unavailable)
+    const dispose = h.ctx.provide('hanaworldsWorldFacts', source as any)
+    const response = await h.request('/api-hanaworlds-deployment', binding)
+    assert.equal(response.status, 200)
+    assert.deepEqual(response.data.writeProfile.value, JSON.parse(JSON.stringify({ ...source.profile,
+      connection: { ...source.profile.connection, worldRef: 'FIXTURE/world/1' } })))
+    assert.deepEqual(response.data.compilerConfig.value, JSON.parse(JSON.stringify(source.profile.compilationConfig)))
+    assert.deepEqual(response.data.writeMethods.value, source.profile.writeMethods)
+    assert.deepEqual(response.data.fixed[0].value, JSON.parse(JSON.stringify(source.profile.avatarEnvelope)))
+    assert.equal(source.requests.length, 1)
+    if (unavailable) await assert.rejects(h.ctx.hanaworldsCompilerConfig.read('FIXTURE/world/1'), /CAPABILITY_UNAVAILABLE/)
+    else assert.deepEqual(await h.ctx.hanaworldsCompilerConfig.read('FIXTURE/world/1'), source.profile.compilationConfig)
+    dispose()
+  }
 })
 
 test('HTTP rejects invalid JSON, oversized bodies, unsupported routes and unknown page handles', async t => {

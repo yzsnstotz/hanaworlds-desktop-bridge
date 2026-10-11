@@ -21,7 +21,7 @@ assert.equal(locked.resolved.split('#').at(-1), tag[0])
 assert.equal(locked.version, '2.3.0')
 assert.equal(json('node_modules/hanaworlds-contracts/package.json').version, '2.3.0')
 assert.equal(version, '2.3.0')
-checkContractHandshake(contractHandshake, { wires: ['session/v5', 'canvas/v7'], factProfiles: [] })
+checkContractHandshake(contractHandshake, { wires: ['session/v5', 'canvas/v7', 'world-facts/v1', 'world-inspection/v1'], factProfiles: [] })
 const { fixtureCapabilities, createWorkshopFixture } = await import('../test/workshop-fixture.ts')
 const { createViewFixture } = await import('../test/view-fixture.ts')
 const canvas = createViewFixture(), workshop = createWorkshopFixture(canvas)
@@ -35,6 +35,24 @@ for (const [port, wire, operation, input] of [
   assert.ok(response.result)
 }
 assert.equal(fixtureCapabilities.providerRef, 'FIXTURE/workshop')
+const { createWriteProfileFixture } = await import('../test/world-facts-fixture.ts')
+const { DesktopWorldInspectionContext } = await import('../lib/world-inspection-context.js')
+const inspectionSession = {}
+const inspection = new DesktopWorldInspectionContext({ session: () => inspectionSession, canvas: () => canvas })
+for (const unavailable of [false, true]) {
+  const facts = createWriteProfileFixture(unavailable)
+  const request = validateRequest('world-facts/v1', 'ReadWriteProfile', {
+    contractVersion: 'world-facts/v1', requestId: `verify-profile-${unavailable}`, worldRef: 'FIXTURE/world/1',
+  })
+  const response = validateBoundResponse('world-facts/v1', 'ReadWriteProfile', request, await facts.call('ReadWriteProfile', request))
+  assert.equal(response.error, null)
+  assert.equal(response.result.avatarEnvelope.availability, unavailable ? 'UNAVAILABLE' : 'KNOWN')
+}
+const inspectionRequest = validateRequest('world-inspection/v1', 'ReadInspectionContext', {
+  contractVersion: 'world-inspection/v1', requestId: 'verify-inspection', sessionRef: 'hanaworlds-view-alpha', worldRef: 'FIXTURE/world/1',
+})
+assert.equal(validateBoundResponse('world-inspection/v1', 'ReadInspectionContext', inspectionRequest,
+  await inspection.ReadInspectionContext(inspectionRequest)).error, null)
 const lifecycleFixture = (await import('hanaworlds-contracts/fixtures/world-lifecycle', { with: { type: 'json' } })).default
 const lifecycle = createWorldLifecycleMock(lifecycleFixture)
 for (const operation of ['describe', 'list']) {
@@ -42,4 +60,4 @@ for (const operation of ['describe', 'list']) {
   const response = validateBoundResponse('world-lifecycle/v2', operation, request, lifecycle('world-lifecycle/v2', operation, request))
   assert.equal(response.error, null)
 }
-console.log(`contracts v2.3.0: published tag ${tag[0]}, lock, installed SDK, session/v5 canvas/v7 and world-lifecycle/v2 fixture roundtrips verified`)
+console.log(`contracts v2.3.0: published tag ${tag[0]}, lock, installed SDK, session/v5 canvas/v7 world-facts/v1 world-inspection/v1 and world-lifecycle/v2 fixture roundtrips verified`)
