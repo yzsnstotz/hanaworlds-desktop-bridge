@@ -17,12 +17,16 @@ import type { DesktopWorkshopTransport } from './workshop-transport.ts'
 import type { DesktopWorldLifecycle } from './world-lifecycle.ts'
 import type { DesktopSessionWorlds } from './session-worlds.ts'
 import type { DesktopDeploymentPolicy } from './deployment-policy.ts'
+import type { DesktopBuildBridge } from './build-bridge.ts'
+import type { DesktopBindingView } from './view-binding.ts'
 
 export const VIEW_PATH = '/api-hanaworlds-view'
 export const WORKSHOP_PATH = '/api-hanaworlds-workshop'
 export const DEPLOYMENT_PATH = '/api-hanaworlds-deployment'
 export const WORLDS_PATH = '/api-hanaworlds-worlds'
 export const REGION_PATH = '/api-hanaworlds-region'
+export const BUILD_PATH = '/api-hanaworlds-build'
+export const OBJECTS_PATH = '/api-hanaworlds-objects'
 /** Request bodies are small JSON objects; anything larger is refused before parsing. */
 const MAX_BODY_BYTES = 64 * 1024
 
@@ -34,6 +38,7 @@ export interface RouteServices {
   worlds: DesktopSessionWorlds
   lifecycle: DesktopWorldLifecycle
   policy: DesktopDeploymentPolicy
+  build: DesktopBuildBridge
   region(): Promise<unknown>
   tools(): Promise<unknown>
 }
@@ -89,7 +94,7 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
       }
     } }), `hanaworlds-desktop-bridge: ${path}`)
 
-  const { views, confirm, transport, worlds, lifecycle, policy } = services
+  const { views, confirm, transport, worlds, lifecycle, policy, build } = services
   ctx.effect(() => () => {
     for (const key of windows) { views.clear(key); confirm.clear(key) }
     windows.clear(); generations.clear()
@@ -124,6 +129,48 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
     if (Object.keys(input).some(key => !allowed.includes(key))) bad('UNKNOWN_FIELD')
     return input
   }
+  const bound = async (input: Record<string, unknown>) => {
+    const key = windowKey(input), lease = text(input, 'lease')
+    const view = await views.read(key, lease)
+    return { view, check: async () => { await views.read(key, lease) } }
+  }
+  const advanceInput = async (req: IncomingMessage) => {
+    const input = fields(await body(req), ['windowKey', 'lease', 'payload'])
+    if (typeof input.payload !== 'object' || input.payload === null || Array.isArray(input.payload)) bad('PAYLOAD_REQUIRED')
+    const payload = fields(input.payload as Record<string, unknown>, ['expectedTurnRevision', 'requestId'])
+    text(payload, 'expectedTurnRevision')
+    if (payload.requestId !== undefined) text(payload, 'requestId')
+    return { ...await bound(input), payload }
+  }
+  const refreshed = async (result: unknown, view: DesktopBindingView, check: () => Promise<void>) => {
+    // A committed build must remain reviewable if a subsequent read fails. Never repeat a mutation.
+    let panels = null, panelError = null
+    try { panels = await build.panels(view, check) }
+    catch (error) { panelError = error instanceof Error ? error.message : String(error) }
+    await check()
+    return { result, panels, panelError }
+  }
+  route(OBJECTS_PATH, {
+    'POST list': async req => {
+      const { view, check } = await bound(fields(await body(req), ['windowKey', 'lease']))
+      return build.objects(view, check)
+    },
+    'POST history': async req => {
+      const input = fields(await body(req), ['windowKey', 'lease', 'objectRef'])
+      const objectRef = text(input, 'objectRef'), { view, check } = await bound(input)
+      return build.history(view, objectRef, check)
+    },
+    'POST panels': async req => {
+      const { view, check } = await bound(fields(await body(req), ['windowKey', 'lease']))
+      return build.panels(view, check)
+    },
+  })
+  route(BUILD_PATH, { 'POST advance': async req => {
+    const { view, check, payload } = await advanceInput(req)
+    const result = await transport.invoke(view.sessionId, { operation: 'workshop',
+      input: { operation: 'AdvanceCurrentBuild', payload } }, check)
+    return refreshed(result, view, check)
+  } })
   route(WORLDS_PATH, {
     'GET describe': async () => lifecycle.call('describe'),
     'GET list': async () => lifecycle.call('list'),
@@ -198,6 +245,10 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
       const view = await views.read(key, lease)
       const result = await transport.invoke(view.sessionId, input.input, async () => { await views.read(key, lease) })
       await views.read(key, lease)
+      const interaction = input.input as { operation?: string; input?: { operation?: string } } | undefined
+      if (interaction?.operation === 'workshop' && interaction.input?.operation === 'AdvanceCurrentBuild') {
+        return refreshed(result, view, async () => { await views.read(key, lease) })
+      }
       return { result }
     },
   })
@@ -208,6 +259,31 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
       return policy.describe(worldRef)
     },
   })
-  route(REGION_PATH, { 'GET ': async () => services.region() })
+  route(REGION_PATH, {
+    'GET ': async () => services.region(),
+    'POST proposal': async req => {
+      const input = fields(await body(req), ['windowKey', 'lease', 'payload'])
+      if (typeof input.payload !== 'object' || input.payload === null || Array.isArray(input.payload)) bad('PAYLOAD_REQUIRED')
+      const payload = fields(input.payload as Record<string, unknown>, ['requestId', 'turnRevision', 'intent', 'intentDigest',
+        'referenceBrief', 'referenceBriefDigest', 'catalogue', 'catalogueDigest', 'proposal'])
+      const { view, check } = await bound(input)
+      const result = await transport.region('submitWriteProposal', { ...payload, contractVersion: 'painter-region/v3',
+        requestId: payload.requestId ?? randomUUID(), invocationId: randomUUID(), sessionRef: view.sessionId,
+        worldRef: view.worldRef, localContext: view.localContext }, check)
+      return { result }
+    },
+    'POST context': async req => {
+      const { view, check, payload } = await advanceInput(req)
+      const result = await transport.region('readWriteProposalContext', { ...payload, contractVersion: 'session/v5',
+        requestId: payload.requestId ?? randomUUID(), sessionRef: view.sessionId, worldRef: view.worldRef, localContext: view.localContext }, check)
+      return { result }
+    },
+    'POST advance': async req => {
+      const { view, check, payload } = await advanceInput(req)
+      const result = await transport.region('advanceRegionBuild', { ...payload, contractVersion: 'session/v5',
+        requestId: payload.requestId ?? randomUUID(), sessionRef: view.sessionId, worldRef: view.worldRef, localContext: view.localContext }, check)
+      return refreshed(result, view, check)
+    },
+  })
   route('/api-hanaworlds-skill-tools', { 'GET ': async () => services.tools() })
 }

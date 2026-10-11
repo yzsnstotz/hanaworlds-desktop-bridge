@@ -6,14 +6,15 @@ import { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import { SkillRegistry } from '@deepseek-ai/dsh-skill'
 import lifecycleFixture from 'hanaworlds-contracts/fixtures/world-lifecycle' with { type: 'json' }
-import { createWorldLifecycleMock, validateType } from 'hanaworlds-contracts'
+import { createWorldLifecycleMock, validateType, digestValue } from 'hanaworlds-contracts'
 import * as plugin from 'hanaworlds-desktop-bridge'
 import { createViewFixture, fixtureIds } from './view-fixture.ts'
 import { createWorkshopFixture, fixtureControls } from './workshop-fixture.ts'
 import { createWriteProfileFixture } from './world-facts-fixture.ts'
+import { installBuildFixture } from './build-fixture.ts'
 
 /** Real Cordis + Core Session + HTTP carrier; model, Canvas and persistence are explicit test peers. */
-async function setup(t: any, registries = true) {
+async function setup(t: any, registries = true, builds = false) {
   const ctx = new Context()
   const sessionsFiber = await ctx.plugin(SessionStore)
   const serverFiber = await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
@@ -81,6 +82,7 @@ async function setup(t: any, registries = true) {
       content: [{ type: 'text', text: modelReply }],
     } }, { surfaceOp: 'append' })
   } })
+  const buildFixture = builds ? installBuildFixture(ctx, canvas, workshop) : undefined
   const bridgeFiber = await ctx.plugin(plugin)
   const base = `http://127.0.0.1:${ctx.webServer.port}`
   t.after(async () => { await bridgeFiber.dispose(); flushDisposer(); await serverFiber.dispose(); await sessionsFiber.dispose() })
@@ -98,7 +100,7 @@ async function setup(t: any, registries = true) {
     assert.equal(selected.status, 200, JSON.stringify(selected.data))
     return { ...page.data, lease: selected.data.lease }
   }
-  return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved,
+  return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved, buildFixture,
     registryReads, registryState, modelSelections, modelReplies, prompts, lifecycle, lifecycleRequests, rejectPrompt(error: Error) { promptError = error } }
 }
 
@@ -775,4 +777,194 @@ test('replacing Canvas with identical context invalidates the old supplier lease
   const h = await setup(t), binding = await h.bind()
   h.ctx.set('hanaworldsCanvasV5', { ...h.canvas, call: h.originalCanvasCall })
   assert.equal((await h.request('/api-hanaworlds-view/read', binding)).status, 409)
+})
+
+async function confirmedBuild(t: any) {
+  const h = await setup(t, true, true)
+  const page = (await h.request('/api-hanaworlds-view/window', {})).data
+  const selected = await h.request('/api-hanaworlds-worlds/connect', { ...page, sessionId: fixtureIds[0], worldId: 'fixture-world-id' })
+  assert.equal(selected.status, 200)
+  const binding = { ...page, lease: selected.data.lease }
+  assert.equal((await h.request('/api-hanaworlds-workshop/prepare', { ...binding, text: '造一间小屋' })).status, 200)
+  assert.equal((await h.request('/api-hanaworlds-workshop/confirm', binding)).status, 200)
+  const turn = h.workshop.snapshot(fixtureIds[0]).turns.at(-1)!
+  return { ...h, binding, payload: { expectedTurnRevision: turn.turnRevision } }
+}
+
+test('build route publishes Canvas object and history panels only after the confirmed cell build', async t => {
+  const h = await confirmedBuild(t)
+  const before = await h.request('/api-hanaworlds-objects/list', h.binding)
+  assert.equal(before.status, 200)
+  assert.deepEqual(before.data.objects, [])
+  const built = await h.request('/api-hanaworlds-build/advance', { ...h.binding, payload: h.payload })
+  assert.equal(built.status, 200, JSON.stringify(built.data))
+  assert.equal(built.data.result.result.outcome, 'VERIFIED')
+  assert.equal(built.data.panels.objects.objects.length, 1)
+  assert.equal(built.data.panels.histories[0].entries[0].transactionId, built.data.result.result.receipt.transactionId)
+  assert.equal(built.data.panelError, null)
+  const objectRef = built.data.panels.objects.objects[0].objectRef
+  const history = await h.request('/api-hanaworlds-objects/history', { ...h.binding, objectRef })
+  assert.equal(history.status, 200)
+  assert.deepEqual(history.data, built.data.panels.histories[0])
+  assert.deepEqual(h.buildFixture!.calls, ['ListObjects', 'AdvanceCurrentBuild', 'CreateObject', 'ListObjects', 'HistoryQuery', 'ListObjects', 'HistoryQuery'])
+})
+
+test('existing Workshop invoke build returns the same panel refresh without a second build', async t => {
+  const h = await confirmedBuild(t)
+  const built = await h.request('/api-hanaworlds-workshop/invoke', { ...h.binding,
+    input: { operation: 'workshop', input: { operation: 'AdvanceCurrentBuild', payload: h.payload } } })
+  assert.equal(built.status, 200, JSON.stringify(built.data))
+  assert.equal(built.data.panels.objects.objects.length, 1)
+  assert.equal(h.buildFixture!.calls.filter(op => op === 'AdvanceCurrentBuild').length, 1)
+})
+
+test('region advance uses the plugin Brush and Canvas region ports and returns both panels', async t => {
+  const h = await confirmedBuild(t)
+  const context = await h.request('/api-hanaworlds-region/context', { ...h.binding, payload: h.payload })
+  assert.equal(context.status, 200, JSON.stringify(context.data))
+  assert.deepEqual(context.data.result.localContext, { ...h.canvas.context(fixtureIds[0]) })
+  const built = await h.request('/api-hanaworlds-region/advance', { ...h.binding, payload: h.payload })
+  assert.equal(built.status, 200, JSON.stringify(built.data))
+  assert.equal(built.data.result.receipt.status, 'VERIFIED')
+  assert.equal(built.data.panels.objects.objects.length, 1)
+  assert.equal(built.data.panels.histories[0].headTransactionId, built.data.result.receipt.transactionId)
+  assert.ok(h.buildFixture!.calls.includes('CompileRegionBuild'))
+  assert.ok(h.buildFixture!.calls.includes('ApplyRegionCommit'))
+  await assert.rejects(h.buildFixture!.canvasRegion.call('ApplyRegionCommit', h.buildFixture!.region.commitRequest), /LOCAL_DISPATCH_REQUIRED/)
+})
+
+test('new routes reject caller association fields and foreign page leases before dispatch', async t => {
+  const h = await confirmedBuild(t), fixture = h.buildFixture!
+  for (const route of ['/api-hanaworlds-build/advance', '/api-hanaworlds-region/context', '/api-hanaworlds-region/advance']) {
+    const start = fixture.calls.length
+    assert.equal((await h.request(route, { ...h.binding, payload: { ...h.payload, worldRef: 'forged' } })).status, 400)
+    assert.equal((await h.request(route, { ...h.binding, payload: h.payload, sessionRef: fixtureIds[1] })).status, 400)
+    assert.equal((await h.request(route, { ...h.binding, payload: h.payload }, { cookie: '' })).status, 401)
+    assert.equal((await h.request(route, { ...h.binding, payload: h.payload }, { origin: 'http://foreign.local' })).status, 403)
+    const page = (await h.request('/api-hanaworlds-view/window', {})).data
+    assert.equal((await h.request(route, { ...page, lease: h.binding.lease, payload: h.payload })).status, 409)
+    assert.equal(fixture.calls.length, start)
+  }
+  assert.equal((await h.request('/api-hanaworlds-objects/list', { ...h.binding, worldRef: 'forged' })).status, 400)
+  assert.equal((await h.request('/api-hanaworlds-objects/history', { ...h.binding, objectRef: 'foreign-object' })).status, 409)
+  assert.ok(!fixture.calls.includes('HistoryQuery'))
+})
+
+test('panel failures preserve a verified mutation receipt and never repeat the build', async t => {
+  const h = await confirmedBuild(t)
+  h.buildFixture!.state.panelError = true
+  const built = await h.request('/api-hanaworlds-build/advance', { ...h.binding, payload: h.payload })
+  assert.equal(built.status, 200, JSON.stringify(built.data))
+  assert.equal(built.data.result.result.receipt.status, 'VERIFIED')
+  assert.equal(built.data.panels, null)
+  assert.match(built.data.panelError, /FIXTURE_PANEL_UNAVAILABLE/)
+  assert.equal(h.buildFixture!.calls.filter(op => op === 'AdvanceCurrentBuild').length, 1)
+})
+
+test('panels reject uncorrelated Canvas records and stale page leases', async t => {
+  const h = await confirmedBuild(t)
+  await h.request('/api-hanaworlds-build/advance', { ...h.binding, payload: h.payload })
+  h.buildFixture!.state.corrupt = 'ListObjects'
+  assert.equal((await h.request('/api-hanaworlds-objects/list', h.binding)).status, 409)
+  h.buildFixture!.state.corrupt = 'HistoryQuery'
+  assert.equal((await h.request('/api-hanaworlds-objects/history', { ...h.binding, objectRef: h.buildFixture!.objects[0].objectRef })).status, 409)
+  h.buildFixture!.state.corrupt = ''
+  const call = h.canvas.call
+  h.canvas.call = async function(op: string, raw: any) {
+    const result = await call.call(this, op, raw)
+    if (op === 'ListObjects') h.ctx.hanaworldsDesktopBridge.views.clear(h.binding.windowKey)
+    return result
+  }
+  assert.equal((await h.request('/api-hanaworlds-objects/list', h.binding)).status, 409)
+})
+
+test('region Adapter writes require a live Canvas region call and its exact session/world', async t => {
+  const h = await confirmedBuild(t), fixture = h.buildFixture!
+  await assert.rejects(fixture.adapterRegion.call('WriteRegion', fixture.region.writeRequest), /LOCAL_DISPATCH_REQUIRED/)
+  h.workshop.advanceRegionBuild = async (request: any) => {
+    await fixture.adapterRegion.call('WriteRegion', { ...fixture.region.writeRequest,
+      sessionRef: request.sessionRef, localContext: request.localContext })
+    return { sessionRef: request.sessionRef, worldRef: request.worldRef, error: null }
+  }
+  const built = await h.request('/api-hanaworlds-region/advance', { ...h.binding, payload: h.payload })
+  assert.equal(built.status, 409)
+  assert.match(built.data.error, /LOCAL_DISPATCH_REQUIRED/)
+  assert.ok(!fixture.calls.includes('WriteRegion'))
+})
+
+test('replaced region suppliers and Painter/Brush ports cannot publish stale results', async t => {
+  const h = await confirmedBuild(t), fixture = h.buildFixture!
+  for (const [key, service, operation, payload] of [
+    ['hanaworldsBrushV3', fixture.brush, 'CompileRegionBuild', fixture.region.compileRequest],
+    ['hanaworldsPainterV2PictureBlocks', fixture.painter, 'ValidateRegionProposal', fixture.region.proposalRequest],
+  ] as const) {
+    const method = operation === 'CompileRegionBuild' ? 'compileRegion' : 'call'
+    const original = (service as any)[method]
+    ;(service as any)[method] = function(...args: any[]) {
+      const result = original.apply(this, args)
+      h.ctx.set(key as any, { ...service } as any)
+      return result
+    }
+    const port = h.ctx.get(operation === 'CompileRegionBuild' ? 'hanaworldsBrushRegionV1' : 'hanaworldsPainterRegionV1')!
+    await assert.rejects(port.call(operation, payload), /REGION_PEER_REPLACED/)
+  }
+})
+
+test('region proposal routes current-view association through Workshop and the plugin Painter port', async t => {
+  const h = await confirmedBuild(t), fixture = h.buildFixture!
+  const request = structuredClone(fixture.region.proposalRequest)
+  request.referenceBrief.sessionRef = fixtureIds[0]
+  request.referenceBriefDigest = digestValue('reference-brief', request.referenceBrief).sha256
+  request.intent.referenceBriefDigest = request.referenceBriefDigest
+  request.intentDigest = digestValue('intent', request.intent).sha256
+  fixture.painter.call = async (_op: string, input?: any) => ({ ...fixture.region.proposalResponse,
+    requestId: input.requestId, result: { ...fixture.region.proposalResponse.result, invocationId: input.invocationId } })
+  const { contractVersion, sessionRef, worldRef, localContext, invocationId, ...payload } = request
+  const response = await h.request('/api-hanaworlds-region/proposal', { ...h.binding, payload })
+  assert.equal(response.status, 200, JSON.stringify(response.data))
+  assert.equal(response.data.result.error, null)
+  assert.equal((await h.request('/api-hanaworlds-region/proposal', { ...h.binding, payload: { ...payload, sessionRef } })).status, 400)
+})
+
+test('object panels refuse foreign nested worlds and a history for a different object', async t => {
+  const h = await confirmedBuild(t)
+  await h.request('/api-hanaworlds-build/advance', { ...h.binding, payload: h.payload })
+  const call = h.canvas.call
+  let foreign = 'world'
+  h.canvas.call = async function(op: string, raw: any) {
+    const response: any = await call.call(this, op, raw)
+    if (op === 'ListObjects' && foreign === 'world') return { ...response,
+      result: { ...response.result, objects: response.result.objects.map((o: any) => ({ ...o, worldRef: 'foreign-world' })) } }
+    if (op === 'HistoryQuery' && foreign === 'object') return { ...response, result: { ...response.result, objectRef: 'foreign-object' } }
+    return response
+  }
+  assert.equal((await h.request('/api-hanaworlds-objects/list', h.binding)).status, 409)
+  foreign = 'object'
+  assert.equal((await h.request('/api-hanaworlds-objects/history', { ...h.binding, objectRef: h.buildFixture!.objects[0].objectRef })).status, 409)
+})
+
+test('incompatible region capabilities are refused before reaching a world write', async t => {
+  const h = await confirmedBuild(t), fixture = h.buildFixture!
+  fixture.adapterRegion.protocolHandshake = { ...fixture.region.peerHandshake, capabilities: [] }
+  const response = await h.request('/api-hanaworlds-region/advance', { ...h.binding, payload: h.payload })
+  assert.equal(response.status, 409)
+  assert.ok(!fixture.calls.includes('WriteRegion'))
+  assert.equal(fixture.objects.length, 0)
+})
+
+test('unconfirmed or pending cell builds leave the Canvas panels unchanged', async t => {
+  const h = await setup(t, true, true), binding = await h.bind()
+  const payload = { expectedTurnRevision: 'unconfirmed-turn' }
+  const refused = await h.request('/api-hanaworlds-build/advance', { ...binding, payload })
+  assert.equal(refused.status, 200)
+  assert.equal(refused.data.result.error.code, 'INTENT_UNCONFIRMED')
+  assert.deepEqual(refused.data.panels.objects.objects, [])
+  const confirmed = await confirmedBuild(t)
+  confirmed.buildFixture!.state.mode = 'PENDING'
+  const pending = await confirmed.request('/api-hanaworlds-build/advance', { ...confirmed.binding, payload: confirmed.payload })
+  assert.equal(pending.status, 200)
+  assert.equal(pending.data.result.result.outcome, 'PENDING')
+  assert.deepEqual(pending.data.panels.objects.objects, [])
+  assert.ok(!confirmed.buildFixture!.calls.includes('CreateObject'))
+  assert.deepEqual((await confirmed.request('/api-hanaworlds-objects/panels', confirmed.binding)).data, pending.data.panels)
 })

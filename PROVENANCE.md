@@ -232,3 +232,18 @@ C-world-inspection remains the neutral `hanaworldsWorldInspectionContext.ReadIns
 | hanaworlds-contracts | 2.3.0 | MIT | https://github.com/yzsnstotz/hanaworlds-contracts/tree/v2.3.0 | C-world-facts and C-world-inspection types, validation, fixture examples |
 
 Evidence is SOURCE/FIXTURE plus real local Cordis/Core Session/HTTP carrier. Assembled world-source availability, real engine facts, browser UI and owner acceptance are not established by these component tests. No dependencies, upstream code, peer module imports or contract changes are added.
+
+# desktop-bridge-09
+
+Baseline: `345bf7d` (desktop-bridge-08 merged). D-5 stays dependency usage of DeepSeek Harness. The existing build bridge, region ports and page bindings are composed through the plugin's authenticated HTTP routes. Canvas owns ListObjects and HistoryQuery; the bridge forwards decoded records into the build response and exposes explicit panel reads. It adds no history storage, engine-specific write routing, peer module imports, dependencies or contract changes.
+
+The Adapter region port previously lacked the in-process write fence. It is now captured and wrapped alongside Canvas region calls: only Canvas's live region stack reaches Adapter region reads/writes for the same Session/world/context. Both Canvas scopes close on the individual call's return, preventing detached descendants from retaining Adapter region or ordinary mutation access. Public protocol capabilities, response binding and supplier identity are checked. Painter/Brush wrappers now reject suppliers replaced during an awaited call. `test/build-fixture.ts` is an explicit minimal component counterparty built from released schema types and region fixtures; it simulates object/history creation and adapter writes with no actual engine or world side effects.
+
+| Name | Version | License | Source | Use |
+| --- | --- | --- | --- | --- |
+| @deepseek-ai/cordis | 4.0.4 | MIT | https://github.com/deepseek-ai/deepseek-harness | Plugin/service composition, registration identity and teardown |
+| @deepseek-ai/dsh-host-webserver | 0.2.0-rc.2 | MIT | https://github.com/deepseek-ai/deepseek-harness | Existing authenticated plugin route carrier |
+| @deepseek-ai/dsh-session | 0.2.0-rc.2 | MIT | https://github.com/deepseek-ai/deepseek-harness | Real Core Sessions and existing page leases in component tests |
+| hanaworlds-contracts | 2.3.0 | MIT | https://github.com/yzsnstotz/hanaworlds-contracts/tree/v2.3.0 | C-session/C-canvas validation, region protocols/capabilities and fixture data |
+
+Evidence is SOURCE/FIXTURE with real local Cordis/Core Session/HTTP and the existing U3 carrier test. Real engine writes, installed peer assembly, rendered Shell panels and owner ACCEPTED remain untested here.

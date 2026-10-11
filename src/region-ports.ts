@@ -79,7 +79,9 @@ export class DesktopRegionPorts {
       async call(operation, request) {
         if (operation !== 'ValidateRegionProposal') deny('UNSUPPORTED_OPERATION')
         if (serviceIdentity(services.painter()) !== serviceIdentity(painter)) deny('REGION_PEER_REPLACED')
-        return painter.call?.(operation, request)
+        const result = await painter.call?.(operation, request)
+        if (serviceIdentity(services.painter()) !== serviceIdentity(painter)) deny('REGION_PEER_REPLACED')
+        return result
       },
     }
   }
@@ -93,7 +95,9 @@ export class DesktopRegionPorts {
       async call(operation, request) {
         if (operation !== 'CompileRegionBuild') deny('UNSUPPORTED_OPERATION')
         if (serviceIdentity(services.brush()) !== serviceIdentity(brush)) deny('REGION_PEER_REPLACED')
-        return brush.compileRegion?.(request)
+        const result = await brush.compileRegion?.(request)
+        if (serviceIdentity(services.brush()) !== serviceIdentity(brush)) deny('REGION_PEER_REPLACED')
+        return result
       },
     }
   }
