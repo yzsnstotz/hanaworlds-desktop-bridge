@@ -8,6 +8,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { DesktopBuildBridge } from '../lib/build-bridge.js'
 import { DesktopInspectionFacts } from '../lib/inspection-facts.js'
 import { createWriteProfileFixture } from './world-facts-fixture.ts'
+import regionFixture from 'hanaworlds-contracts/fixtures/region' with { type: 'json' }
 
 test('deployment relays a complete world-source write profile, including opaque backend and declared avatar', async () => {
   const source = createWriteProfileFixture()
@@ -126,6 +127,68 @@ test('build bridge restores the exact raw call on actual Cordis Service registra
       assert.equal(raw.call, original, seam)
     }
   } finally { await fiber.dispose() }
+})
+
+test('region write authorization ends when the individual Canvas call returns', async () => {
+  const request = regionFixture.commitRequest
+  let release!: () => void, late!: Promise<unknown>, writes = 0
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const adapter = { protocolHandshake: regionFixture.peerHandshake, async call() { writes++; return regionFixture.writeResponse } }
+  const canvas = { protocolHandshake: { ...regionFixture.peerHandshake,
+    protocols: [...contractProtocols].sort((a, b) => a.protocol < b.protocol ? -1 : a.protocol > b.protocol ? 1 : 0),
+    capabilities: regionCapabilities.map(c => c.id).sort() }, async call() {
+    late = gate.then(() => adapter.call('WriteRegion', regionFixture.writeRequest))
+    return regionFixture.commitResponse
+  } }
+  const bridge = new DesktopBuildBridge({ trustedInvocation: () => ({ sessionRef: request.sessionRef,
+    localContext: request.localContext, async check() {} }) } as any,
+    { canvas: () => ({ contractHandshake, async call() { return null } }), adapter: () => undefined,
+      nativeFacts: () => undefined, canvasRegion: () => canvas, adapterRegion: () => adapter })
+  try {
+    await bridge.run(async () => {
+      await canvas.call('ApplyRegionCommit', request)
+      release()
+      await assert.rejects(late, /LOCAL_DISPATCH_REQUIRED/)
+      assert.equal(writes, 0)
+      return null
+    })
+  } finally { bridge.close() }
+})
+
+test('Canvas region descendants cannot retain the ordinary Adapter mutation scope', async () => {
+  const request = regionFixture.commitRequest
+  let release!: () => void, late!: Promise<unknown>, writes = 0
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const adapter = { contractHandshake, async call(_op: string, input: any) {
+    writes++
+    return { contractVersion: 'world-adapter/v8', requestId: input.requestId, result: null, guardRefusal: null,
+      error: { code: 'CAPABILITY_UNAVAILABLE', phase: 'validate', retryability: 'AFTER_NEW_FACTS', mutationState: 'NONE',
+        transactionRef: null, causeCode: null, reason: 'REQUIRED_FACT_UNKNOWN' } }
+  } }
+  const localCanvas = { contractHandshake, async call() { return null } }
+  const canvas = { protocolHandshake: { ...regionFixture.peerHandshake,
+    protocols: [...contractProtocols].sort((a, b) => a.protocol < b.protocol ? -1 : a.protocol > b.protocol ? 1 : 0),
+    capabilities: regionCapabilities.map(c => c.id).sort() }, async call() {
+    late = gate.then(() => adapter.call('RestoreTransaction', { contractVersion: 'world-adapter/v8',
+      requestId: 'late-restore', sessionRef: request.sessionRef, worldRef: request.worldRef,
+      originTransactionId: request.transactionId, operationDigest: 'a'.repeat(64), beforeImageDigest: 'b'.repeat(64),
+      restoreAttemptIdentity: 'late-attempt', guarantee: 'RECOVERABLE_VERIFIED', localContext: request.localContext }))
+    return regionFixture.commitResponse
+  } }
+  const adapterRegion = { protocolHandshake: regionFixture.peerHandshake, async call() {} }
+  const guarded = new DesktopBuildBridge({ trustedInvocation: () => ({ sessionRef: request.sessionRef,
+    localContext: request.localContext, async check() {} }) } as any,
+    { canvas: () => localCanvas, adapter: () => adapter, nativeFacts: () => undefined,
+      canvasRegion: () => canvas, adapterRegion: () => adapterRegion })
+  try {
+    await guarded.run(async () => {
+      await canvas.call('ApplyRegionCommit', request)
+      release()
+      await assert.rejects(late, /LOCAL_DISPATCH_REQUIRED/)
+      assert.equal(writes, 0)
+      return null
+    })
+  } finally { guarded.close() }
 })
 
 test('inspection recognizes unchanged Canvas and revision-oracle registrations through Cordis proxies', async () => {

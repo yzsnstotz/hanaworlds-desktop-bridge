@@ -42,6 +42,7 @@ interface Invocation {
   adapterRegion: RegionCallPort | undefined
   open: boolean
 }
+interface CanvasCall { scope: Invocation; open: boolean }
 const adapterReads = new Set(['DiscoverConnections', 'ListWorlds', 'ReadLocalConnection', 'InspectWorld', 'InspectRegion'])
 const canvasReads = new Set(['ReadWorldSelectionContext', 'ListWorldConnections', 'SelectWorldConnection', 'SwitchWorldConnection', 'ListObjects', 'HistoryQuery'])
 const retirementOperations = new Set(['ListWorldSelections', 'ReserveWorldRetirement', 'ReleaseWorldRetirement'])
@@ -51,8 +52,8 @@ export class DesktopBuildBridge {
   private readonly retirement = new AsyncLocalStorage<{ canvas: DomainPort; worldRef: string; open: boolean }>()
   private readonly active = new AsyncLocalStorage<Invocation>()
   private readonly checking = new AsyncLocalStorage<boolean>()
-  private readonly canvasCall = new AsyncLocalStorage<Invocation>()
-  private readonly regionCanvasCall = new AsyncLocalStorage<Invocation>()
+  private readonly canvasCall = new AsyncLocalStorage<CanvasCall>()
+  private readonly regionCanvasCall = new AsyncLocalStorage<CanvasCall>()
   private readonly canvasInspection = new AsyncLocalStorage<unknown>()
   private readonly wrapped = new WeakSet<object>()
   private readonly disposers: (() => void)[] = []
@@ -75,7 +76,9 @@ export class DesktopBuildBridge {
     const wrapper = async function(this: RegionCallPort, operation: string, raw: unknown): Promise<unknown> {
       const scope = active.getStore()
       if (!scope?.open || !(kind === 'canvas' ? canvasRegionOperations : adapterRegionOperations).has(operation)) deny()
-      if (kind === 'adapter' && regionCanvasCall.getStore() !== scope) deny()
+      const frame = regionCanvasCall.getStore()
+      const liveFrame = () => { if (kind === 'adapter' && (!frame?.open || frame.scope !== scope)) deny() }
+      liveFrame()
       const peers = () => {
         if (same(services.canvasRegion?.()) !== same(scope.canvasRegion)
           || same(services.adapterRegion?.()) !== same(scope.adapterRegion)
@@ -92,11 +95,17 @@ export class DesktopBuildBridge {
         || !sameLocalContext(request.localContext as typeof current, current)) deny()
       await checking.run(true, () => scope.captured.check())
       peers()
+      liveFrame()
       const call = () => original.call(this, operation, request)
       const response = kind === 'canvas'
-        ? await canvasCall.run(scope, () => regionCanvasCall.run(scope, call)) : await call()
+        ? await (() => {
+          const frame = { scope, open: true }
+          return canvasCall.run(frame, () => regionCanvasCall.run(frame,
+            async () => { try { return await call() } finally { frame.open = false } }))
+        })() : await call()
       await checking.run(true, () => scope.captured.check())
       peers()
+      liveFrame()
       if (kind === 'canvas' && operation === 'ApplyRegionCommit') return validateRegionCommit(request, response)
       const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
       return validate(wire, operation, request, response)
@@ -130,7 +139,11 @@ export class DesktopBuildBridge {
       }
       if (same(services.canvas()) !== same(scope.canvas) || same(services.adapter()) !== same(scope.adapter)
         || same(port) !== same(kind === 'canvas' ? scope.canvas : scope.adapter)) deny()
-      if (kind === 'adapter' && !adapterReads.has(operation) && canvasCall.getStore() !== scope) deny()
+      const frame = canvasCall.getStore()
+      const liveFrame = () => {
+        if (kind === 'adapter' && !adapterReads.has(operation) && (!frame?.open || frame.scope !== scope)) deny()
+      }
+      liveFrame()
       const wire = kind === 'canvas' ? 'canvas/v7' : 'world-adapter/v8'
       const decode = validateRequest as (wire: string, operation: string, raw: unknown) => Record<string, unknown>
       const request = decode(wire, operation, raw)
@@ -142,12 +155,19 @@ export class DesktopBuildBridge {
         return original.call(this, operation, request)
       }
       await checking.run(true, () => scope.captured.check())
+      liveFrame()
       const call = () => original.call(this, operation, request)
-      const response = kind === 'canvas' ? await canvasCall.run(scope, () =>
-        canvasInspection.run(operation === 'InspectObject' ? request : undefined, call))
+      const response = kind === 'canvas' ? await (() => {
+        const frame = { scope, open: true }
+        return canvasCall.run(frame, async () => {
+          try { return await canvasInspection.run(operation === 'InspectObject' ? request : undefined, call) }
+          finally { frame.open = false }
+        })
+      })()
         : operation === 'InspectWorld' && services.inspection
           ? await services.inspection().run(request, call, canvasInspection.getStore()) : await call()
       await checking.run(true, () => scope.captured.check())
+      liveFrame()
       const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
       return validate(wire, operation, request, response)
     }
