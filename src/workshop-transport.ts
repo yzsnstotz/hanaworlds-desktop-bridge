@@ -1,7 +1,7 @@
 /** Host-only session association and strict current-protocol Workshop dispatch. */
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
-import { validateRequest, validateBoundResponse, checkContractHandshake, validateType, validateRegionProposalRequest, type LocalWorldContext, type SessionSnapshot } from 'hanaworlds-contracts'
+import { validateRequest, validateBoundResponse, checkContractHandshake, validateType, validateRegionProposalRequest, type ClarificationNeed, type LocalWorldContext, type SessionSnapshot } from 'hanaworlds-contracts'
 import { sameLocalContext, type DomainPort } from './local-protocol.ts'
 import { serviceIdentity as same } from './image-media.ts'
 const operations = new Set(['StartOrResumeSession', 'SwitchWorldContext', 'AppendMultimodalTurn', 'AnswerClarification',
@@ -35,7 +35,22 @@ export class DesktopWorkshopTransport {
   private readonly active = new AsyncLocalStorage<Scope>()
   private readonly busy = new Set<string>()
   private readonly reads = new Map<string, Promise<void>>()
+  private readonly pendingRounds = new Map<string, { session: object; port: DomainPort; localContext: LocalWorldContext;
+    turnRef: string; clarification: ClarificationNeed }>()
   constructor(private readonly services: Services) {}
+  /** Only validated public turn receipts supply a pending round; prose and private peer state do not. */
+  pending(sessionRef: string, snapshot: SessionSnapshot, context: LocalWorldContext): ClarificationNeed | null {
+    const round = this.pendingRounds.get(sessionRef), turn = snapshot.turns.at(-1)
+    if (!round) return null
+    if (this.services.session(sessionRef) !== round.session || same(this.services.workshop()) !== same(round.port)
+      || !sameLocalContext(round.localContext, context) || !sameLocalContext(snapshot.context.localContext, context)
+      || snapshot.context.currentSession !== sessionRef || snapshot.context.activeWorldRef !== context.worldRef
+      || turn?.turnRef !== round.turnRef || turn.turnRevision !== round.clarification.turnRevision) {
+      this.pendingRounds.delete(sessionRef)
+      return null
+    }
+    return { ...round.clarification }
+  }
   private async check(scope: Scope): Promise<void> {
     await scope.assertLive()
     const current = await this.services.localContext(scope.sessionRef)
@@ -138,6 +153,16 @@ export class DesktopWorkshopTransport {
       const response = decode(wire, operation, request, result)
       if (record(response) && response.error === null && record(response.result)) {
         const value = response.result
+        if (operation === 'AppendMultimodalTurn' || operation === 'AnswerClarification') {
+          const receipt = validateType('TurnReceipt', value)
+          if (receipt.sessionRef !== sessionRef || receipt.turnRef !== request.turnRef
+            || (receipt.clarification && (receipt.clarification.sessionRef !== sessionRef
+              || receipt.clarification.turnRevision !== receipt.turnRevision))) throw new Error('WORKSHOP_TURN_MISMATCH')
+          if (receipt.clarification) this.pendingRounds.set(sessionRef, { session, port, localContext: { ...context },
+            turnRef: receipt.turnRef, clarification: { ...receipt.clarification } })
+          else this.pendingRounds.delete(sessionRef)
+        }
+        if (operation === 'SwitchWorldContext') this.pendingRounds.delete(sessionRef)
         if (operation === 'UndoCurrentBuild' && (!record(value.beforeHead) || !record(value.afterHead)
           || value.beforeHead.historyRevision !== request.expectedHistoryRevision
           || value.afterHead.historyRevision === value.beforeHead.historyRevision
