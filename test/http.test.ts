@@ -383,6 +383,177 @@ test('neutral lifecycle routes preserve source-owned templates and opaque creati
   assert.equal((await h.request('/api-hanaworlds-worlds/list', undefined, { cookie: '' })).status, 401)
 })
 
+const deletion = { worldId: 'fixture-world-id', confirmationName: 'Fixture World' }
+
+test('delete requires the exact source name and rejects forged retirement authority before any mutation', async t => {
+  const h = await setup(t)
+  for (const input of [{ ...deletion, confirmationName: 'fixture world' }, { ...deletion, confirmationName: 'Fixture World ' }]) {
+    const response = await h.request('/api-hanaworlds-worlds/delete', input)
+    assert.equal(response.status, 409)
+    assert.match(response.data.error, /TRANSACTION_CONFLICT.*名字/)
+  }
+  for (const input of [{ worldId: deletion.worldId }, { ...deletion, worldRef: 'forged' }, { ...deletion, reservationRef: 'forged' }]) {
+    assert.equal((await h.request('/api-hanaworlds-worlds/delete', input)).status, 400)
+  }
+  assert.ok(h.lifecycleRequests.every(r => r.operation === 'describeDelete'))
+  assert.equal(h.canvas.requests.length, 0)
+})
+
+test('delete refuses a world selected by another conversation even after disconnection', async t => {
+  const h = await setup(t)
+  const page = (await h.request('/api-hanaworlds-view/window', {})).data
+  assert.equal((await h.request('/api-hanaworlds-worlds/connect', { ...page, sessionId: fixtureIds[1], worldId: deletion.worldId })).status, 200)
+  h.canvas.act(fixtureIds[1], 'disconnect')
+  const response = await h.request('/api-hanaworlds-worlds/delete', deletion)
+  assert.equal(response.status, 409)
+  assert.match(response.data.error, /先在那个对话里切到别的世界/)
+  assert.ok(response.data.error.includes(fixtureIds[1]))
+  assert.ok(!h.lifecycleRequests.some(r => r.operation === 'delete'))
+})
+
+test('delete reserves through Canvas before lifecycle deletion and retires the reservation', async t => {
+  const h = await setup(t), order: string[] = []
+  const canvasCall = h.canvas.call, remove = h.lifecycle.delete
+  h.canvas.call = async function (op: string, req: unknown) { order.push(op); return canvasCall.call(this, op, req) }
+  h.lifecycle.delete = async (req: unknown) => { order.push('delete'); return remove(req) }
+  const response = await h.request('/api-hanaworlds-worlds/delete', deletion)
+  assert.equal(response.status, 200, JSON.stringify(response.data))
+  assert.equal(response.data.deleted, true)
+  assert.deepEqual(order, ['ListWorldSelections', 'ReserveWorldRetirement', 'delete', 'ReleaseWorldRetirement'])
+  assert.equal(h.canvas.requests.at(-1)!.request.outcome, 'RETIRED')
+  assert.deepEqual(h.lifecycleRequests.map(r => r.operation), ['describeDelete', 'delete'])
+  await assert.rejects(h.ctx.hanaworldsDesktopBridge.lifecycle.call('delete' as never, deletion), /retirement gate/)
+})
+
+test('delete aborts its reservation on lifecycle failure and permits a later explicit attempt', async t => {
+  const h = await setup(t), remove = h.lifecycle.delete
+  h.lifecycle.delete = async () => { throw new Error('TRANSACTION_CONFLICT') }
+  assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion)).status, 409)
+  assert.equal(h.canvas.requests.at(-1)!.request.outcome, 'ABORTED')
+  h.lifecycle.delete = remove
+  assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion)).status, 200)
+})
+
+test('retirement blocks new selections and a second deletion while lifecycle delete is pending', async t => {
+  const h = await setup(t), remove = h.lifecycle.delete
+  let proceed!: () => void, started!: () => void
+  const gate = new Promise<void>(resolve => { proceed = resolve }), ready = new Promise<void>(resolve => { started = resolve })
+  h.lifecycle.delete = async (req: unknown) => { started(); await gate; return remove(req) }
+  const deleting = h.request('/api-hanaworlds-worlds/delete', deletion)
+  try {
+    assert.equal(await Promise.race([ready.then(() => true), deleting.then(() => false)]), true)
+    assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion)).status, 409)
+    const page = (await h.request('/api-hanaworlds-view/window', {})).data
+    assert.equal((await h.request('/api-hanaworlds-worlds/connect', { ...page, sessionId: fixtureIds[0], worldId: deletion.worldId })).status, 409)
+  } finally { proceed() }
+  assert.equal((await deleting).status, 200)
+  assert.equal(h.lifecycleRequests.filter(r => r.operation === 'delete').length, 1)
+})
+
+test('delete keeps the route login and Origin boundary ahead of any peer call', async t => {
+  const h = await setup(t)
+  assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion, { cookie: '' })).status, 401)
+  assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion, { origin: 'http://foreign.local' })).status, 403)
+  assert.equal(h.lifecycleRequests.length, 0)
+  assert.equal(h.canvas.requests.length, 0)
+})
+
+test('selection racing the retirement reservation refuses deletion with conversation guidance', async t => {
+  const h = await setup(t), call = h.canvas.call
+  h.canvas.call = async function (op: string, req: any) {
+    if (op === 'ReserveWorldRetirement') await h.originalCanvasCall.call(this, 'SelectWorldConnection', {
+      contractVersion: 'canvas/v7', requestId: 'race-selection', sessionRef: fixtureIds[1], worldRef: 'fixture-world',
+      connectionRef: 'race-connection', connectionIncarnationRef: 'race-incarnation', expectedRevision: 'race-revision', expectedContext: null,
+    })
+    return call.call(this, op, req)
+  }
+  const response = await h.request('/api-hanaworlds-worlds/delete', deletion)
+  assert.equal(response.status, 409)
+  assert.match(response.data.error, /先在那个对话里切到别的世界/)
+  assert.ok(!h.lifecycleRequests.some(r => r.operation === 'delete'))
+  assert.equal(h.canvas.requests.filter(r => r.operation === 'ReserveWorldRetirement').length, 1)
+})
+
+test('delete rejects uncorrelated descriptions, inventories and retirement receipts before lifecycle mutation', async t => {
+  for (const corruption of ['description', 'inventory', 'reservation-id', 'reservation-revision']) await t.test(corruption, async t => {
+    const h = await setup(t), call = h.canvas.call, describe = h.lifecycle.describeDelete
+    if (corruption === 'description') h.lifecycle.describeDelete = async (req: any) => ({ ...await describe(req), requestId: 'wrong-id' })
+    else h.canvas.call = async function (op: string, req: any) {
+      const response: any = await call.call(this, op, req)
+      if (corruption === 'inventory' && op === 'ListWorldSelections') return { ...response, result: { ...response.result, worldRef: 'wrong-world' } }
+      if (op === 'ReserveWorldRetirement' && corruption === 'reservation-id') return { ...response, requestId: 'wrong-id' }
+      if (op === 'ReserveWorldRetirement' && corruption === 'reservation-revision') return { ...response, result: { ...response.result, inventoryRevision: 'wrong-revision' } }
+      return response
+    }
+    assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion)).status, 409)
+    assert.ok(!h.lifecycleRequests.some(r => r.operation === 'delete'))
+  })
+})
+
+test('replacing either supplier after reservation aborts through the captured Canvas without deleting', async t => {
+  for (const supplier of ['canvas', 'lifecycle']) await t.test(supplier, async t => {
+    const h = await setup(t), call = h.canvas.call
+    h.canvas.call = async function (op: string, req: any) {
+      const response = await call.call(this, op, req)
+      if (op === 'ReserveWorldRetirement') {
+        if (supplier === 'canvas') h.ctx.set('hanaworldsCanvasV5', createViewFixture())
+        else h.ctx.set('hanaworldsWorldLifecycle', { ...h.lifecycle })
+      }
+      return response
+    }
+    const response = await h.request('/api-hanaworlds-worlds/delete', deletion)
+    assert.equal(response.status, 409)
+    assert.match(response.data.error, /REPLACED/)
+    assert.doesNotMatch(response.data.error, /WORLD_RETIREMENT_RELEASE_FAILED/)
+    assert.equal(h.canvas.requests.at(-1)!.request.outcome, 'ABORTED')
+    assert.ok(!h.lifecycleRequests.some(r => r.operation === 'delete'))
+  })
+})
+
+test('release failures expose the confirmed retirement outcome and preserve original deletion errors', async t => {
+  for (const deleted of [true, false]) await t.test(String(deleted), async t => {
+    const h = await setup(t), call = h.canvas.call
+    let outcome: string | undefined
+    h.canvas.call = async function (op: string, req: any) {
+      if (op === 'ReleaseWorldRetirement') { outcome = req.outcome; throw new Error('RELEASE_FAILED') }
+      return call.call(this, op, req)
+    }
+    if (!deleted) h.lifecycle.delete = async () => { throw new Error('WORLD_NOT_FOUND') }
+    const response = await h.request('/api-hanaworlds-worlds/delete', deletion)
+    assert.equal(response.status, 409)
+    assert.equal(outcome, deleted ? 'RETIRED' : 'ABORTED')
+    assert.match(response.data.error, /WORLD_RETIREMENT_RELEASE_FAILED.*RELEASE_FAILED/)
+    if (!deleted) assert.match(response.data.error, /WORLD_NOT_FOUND/)
+    assert.equal((await h.request('/api-hanaworlds-worlds/delete', deletion)).status, 409)
+  })
+})
+
+test('a deletion receipt for a different world aborts retirement without permanently retiring the target', async t => {
+  const h = await setup(t), remove = h.lifecycle.delete
+  h.lifecycle.delete = async (req: unknown) => {
+    const response = await remove(req)
+    return { ...response, result: { ...response.result, worldRef: 'different-world' } }
+  }
+  const response = await h.request('/api-hanaworlds-worlds/delete', deletion)
+  assert.equal(response.status, 409)
+  assert.equal(response.data.error, 'CURRENT_WORLD_MISMATCH')
+  assert.equal(h.canvas.requests.at(-1)!.request.outcome, 'ABORTED')
+  const page = (await h.request('/api-hanaworlds-view/window', {})).data
+  assert.equal((await h.request('/api-hanaworlds-worlds/connect', { ...page, sessionId: fixtureIds[0], worldId: deletion.worldId })).status, 200)
+})
+
+test('delete names missing suppliers and raw retirement operations remain gated', async t => {
+  const h = await setup(t)
+  await assert.rejects(h.canvas.call('ReserveWorldRetirement', { contractVersion: 'canvas/v7', requestId: 'raw-retirement',
+    worldRef: 'fixture-world', expectedInventoryRevision: 'FIXTURE/inventory/1' }), /LOCAL_DISPATCH_REQUIRED/)
+  h.ctx.set('hanaworldsWorldLifecycle', undefined as any)
+  assert.match((await h.request('/api-hanaworlds-worlds/delete', deletion)).data.error, /ADAPTER_UNAVAILABLE/)
+  h.ctx.set('hanaworldsWorldLifecycle', h.lifecycle)
+  h.ctx.set('hanaworldsCanvasV5', undefined as any)
+  assert.match((await h.request('/api-hanaworlds-worlds/delete', deletion)).data.error, /CANVAS_UNAVAILABLE/)
+  assert.equal(h.lifecycleRequests.length, 0)
+})
+
 test('connect launches by lifecycle, selects Canvas and issues a distinct lease for each page window', async t => {
   const h = await setup(t)
   h.canvas.act(fixtureIds[0], 'disconnect')

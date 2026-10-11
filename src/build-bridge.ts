@@ -30,9 +30,11 @@ const canvasRegionOperations = new Set(['ApplyRegionCommit', 'UndoRegionCommit']
 interface Invocation { captured: ReturnType<DesktopWorkshopTransport['trustedInvocation']>; canvas: DomainPort; adapter: DomainPort | undefined; open: boolean }
 const adapterReads = new Set(['DiscoverConnections', 'ListWorlds', 'ReadLocalConnection', 'InspectWorld', 'InspectRegion'])
 const canvasReads = new Set(['ReadWorldSelectionContext', 'ListWorldConnections', 'SelectWorldConnection', 'SwitchWorldConnection', 'ListObjects'])
+const retirementOperations = new Set(['ListWorldSelections', 'ReserveWorldRetirement', 'ReleaseWorldRetirement'])
 function deny(): never { throw new Error('LOCAL_DISPATCH_REQUIRED') }
 /** The call stack, not a serialized role or permission field, separates internal world writes. */
 export class DesktopBuildBridge {
+  private readonly retirement = new AsyncLocalStorage<{ canvas: DomainPort; worldRef: string; open: boolean }>()
   private readonly active = new AsyncLocalStorage<Invocation>()
   private readonly checking = new AsyncLocalStorage<boolean>()
   private readonly canvasCall = new AsyncLocalStorage<Invocation>()
@@ -75,8 +77,20 @@ export class DesktopBuildBridge {
     const registered = same(port) ?? port
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Restored verbatim and called with its owning service.
     const original = registered.call
-    const { active, services, canvasCall, checking, canvasInspection } = this
+    const { active, services, canvasCall, checking, canvasInspection, retirement } = this
     const wrapper = async function(this: DomainPort, operation: string, raw: unknown): Promise<unknown> {
+      const retiring = retirement.getStore()
+      if (kind === 'canvas' && retiring?.open && retirementOperations.has(operation)) {
+        // Retirement is world-scoped and independent of a selected Session's build authorization.
+        const decode = validateRequest as (wire: string, operation: string, raw: unknown) => Record<string, unknown>
+        const request = decode('canvas/v7', operation, raw)
+        if (same(port) !== same(retiring.canvas) || request.worldRef !== retiring.worldRef) deny()
+        // Release must reach the captured reservation owner even if the live registration changed.
+        if (operation !== 'ReleaseWorldRetirement' && same(services.canvas()) !== same(retiring.canvas)) deny()
+        const response = await original.call(this, operation, request)
+        const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
+        return validate('canvas/v7', operation, request, response)
+      }
       const scope = active.getStore()
       if (!scope?.open) {
         if (!(kind === 'canvas' ? canvasReads : adapterReads).has(operation)) deny()
@@ -107,6 +121,14 @@ export class DesktopBuildBridge {
     }
     registered.call = wrapper; this.wrapped.add(registered)
     this.disposers.push(() => { if (registered.call === wrapper) registered.call = original })
+  }
+  /** Internal product deletion scope. Never exported as a route or serialized authority. */
+  async runWorldRetirement<T>(worldRef: string, work: () => Promise<T>): Promise<T> {
+    this.bind()
+    const canvas = this.services.canvas()
+    if (!canvas) throw new Error('CANVAS_UNAVAILABLE')
+    const scope = { canvas, worldRef, open: true }
+    return this.retirement.run(scope, async () => { try { return await work() } finally { scope.open = false } })
   }
   async run(call: () => Promise<unknown>): Promise<unknown> {
     this.bind()
