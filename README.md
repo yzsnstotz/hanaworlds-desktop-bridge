@@ -143,6 +143,9 @@ pnpm 11.28.5 defaults, replays its frozen production lock, loads all shipped JS
 entries, exercises real Cordis/Core Session/HTTP carrier behavior against public
 protocol doubles, and runs failing boundary injections. Build and npm test both
 run this gate. Direct `npm run prepack` also performs the complete archive gate.
+The gate's npm pack uses the standard global user cache (`~/.npm`) explicitly,
+including under npm run, which injects npm's configured cache into child processes.
+It does not change user npm configuration or require an external build volume.
 No dependency policy, lifecycle scripts, hooks, aliases or allowlists are relaxed.
 Production lock, resolution graph, tgz digest and probe/negative evidence are
 retained in the printed evidence directory. Set `HANAWORLDS_BOUNDARY_RUN` to a

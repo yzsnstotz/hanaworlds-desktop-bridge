@@ -22,10 +22,11 @@ if (process.argv.includes('--prepack') && process.env.npm_command === 'pack') {
   const tgz = process.argv.includes('--postpack')
     ? resolve(process.env.npm_config_pack_destination ?? root,archiveName)
     : join(attempt,archiveName)
-  const env = {...process.env,npm_config_cache:process.env.npm_config_cache ?? join(homedir(),'.npm')}
   if (!process.argv.includes('--postpack')) {
     // postpack performs the complete check, including negatives; no lifecycle scripts are disabled.
-    execFileSync('npm',['pack','--json','--pack-destination',attempt],{cwd:root,env,stdio:['ignore','pipe','inherit']})
+    // npm run injects its configured cache into the environment. Select the standard
+    // global user cache explicitly so pack never depends on an unrelated build mount.
+    execFileSync('npm',['pack','--cache',join(homedir(),'.npm'),'--json','--pack-destination',attempt],{cwd:root,stdio:['ignore','pipe','inherit']})
     console.log(`package boundary complete: ${tgz}`)
   } else {
     assert.ok(existsSync(tgz),`actual npm archive missing: ${tgz}`)
