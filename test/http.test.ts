@@ -3,13 +3,15 @@ import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import { SessionStore, SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
 import { WebServer } from '@deepseek-ai/dsh-host-webserver'
+import { ToolRuntime } from '@deepseek-ai/dsh-tools'
+import { SkillRegistry } from '@deepseek-ai/dsh-skill'
 import { validateType } from 'hanaworlds-contracts'
 import * as plugin from 'hanaworlds-desktop-bridge'
 import { createViewFixture, fixtureIds } from './view-fixture.ts'
 import { createWorkshopFixture, fixtureControls } from './workshop-fixture.ts'
 
 /** Real Cordis + Core Session + HTTP carrier; model, Canvas and persistence are explicit test peers. */
-async function setup(t: any) {
+async function setup(t: any, registries = true) {
   const ctx = new Context()
   const sessionsFiber = await ctx.plugin(SessionStore)
   const serverFiber = await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
@@ -21,6 +23,16 @@ async function setup(t: any) {
   } })
   ctx.provide('hanaworldsCanvasV5', canvas)
   ctx.provide('hanaworldsWorkshop', workshop)
+  const registryReads: string[] = []
+  const registryState = { tools: [] as unknown[], skills: { skills: [] as unknown[], complete: true } }
+  if (registries) {
+    ctx.provide('tools', { schemas(...args: unknown[]) {
+      assert.deepEqual(args, []); registryReads.push('tools.schemas'); return registryState.tools
+    } } as any)
+    ctx.provide('skills', { async snapshot(...args: unknown[]) {
+      assert.deepEqual(args, []); registryReads.push('skills.snapshot'); return registryState.skills
+    } } as any)
+  }
   const sessions = ctx.sessions
   for (const id of fixtureIds) sessions.create(SessionId(id))
   // The original fixture's durable Core seam, modeled in memory for component tests.
@@ -72,7 +84,7 @@ async function setup(t: any) {
     return { ...page.data, lease: selected.data.lease }
   }
   return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved,
-    modelSelections, prompts, rejectPrompt(error: Error) { promptError = error } }
+    registryReads, registryState, modelSelections, prompts, rejectPrompt(error: Error) { promptError = error } }
 }
 
 test('Cordis entry registers authenticated HTTP routes and releases services and peer wrappers', async t => {
@@ -84,12 +96,88 @@ test('Cordis entry registers authenticated HTTP routes and releases services and
   validateType('PublicCapabilities', h.ctx.hanaworldsCapabilities)
   assert.ok(h.ctx.hanaworldsPainterLocalFacts)
   assert.ok(h.ctx.hanaworldsWorldInspectionContext)
-  assert.equal((await h.request('/api-hanaworlds-skill-tools')).data.kind, 'WORKSHOP_TOOL_DESCRIPTIONS')
+  assert.deepEqual((await h.request('/api-hanaworlds-skill-tools')).data, { tools: [], skills: { skills: [], complete: true } })
   await h.bridgeFiber.dispose()
   assert.equal(h.ctx.get('hanaworldsDesktopBridge'), undefined)
   assert.equal(h.ctx.get('hanaworldsCatalogue'), undefined)
   assert.equal(h.canvas.call, h.originalCanvasCall)
   assert.equal((await h.request('/api-hanaworlds-view/candidates')).status, 404)
+})
+
+test('skill-tools reads only live host schemas and skill snapshots with neutral descriptions', async t => {
+  const h = await setup(t)
+  const before = { sessions: h.ctx.sessions.list().map(s => s.id), requests: h.workshop.requests.length,
+    prompts: h.prompts.length, saved: [...h.saved] }
+  h.workshop.describeWriteTools = async () => { throw new Error('WORKSHOP_MUST_NOT_BE_READ') }
+  h.registryState.tools = [{ name: 'hanaworlds_proposal', description: '提交逐格建筑提议：使用当前世界的不透明材质引用与中立朝向。',
+    parameters: { type: 'object', properties: { materialRef: { type: 'string' }, orientation: { type: 'integer' } },
+      required: ['materialRef'], additionalProperties: false } }]
+  h.registryState.skills = { skills: [{ name: 'hanaworlds-building', description: '从当前世界的事实读取几何、分块与材质词表。',
+    source: 'runtime', provider: 'FIXTURE/skills', invocation: { modelInvocable: true, userInvocable: true } }], complete: true }
+  const response = await h.request('/api-hanaworlds-skill-tools')
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.data, h.registryState)
+  assert.doesNotMatch(JSON.stringify(response.data), /nodeName|param2|mapblock|flat\s+mapgen|["']?unit["']?\s*:\s*["']node["']/i)
+  assert.deepEqual(h.registryReads, ['tools.schemas', 'skills.snapshot'])
+  h.registryState.tools = []
+  h.registryState.skills = { skills: [], complete: false }
+  assert.deepEqual((await h.request('/api-hanaworlds-skill-tools')).data, h.registryState)
+  assert.deepEqual({ sessions: h.ctx.sessions.list().map(s => s.id), requests: h.workshop.requests.length,
+    prompts: h.prompts.length, saved: [...h.saved] }, before)
+})
+
+test('skill-tools enforces login, origin and GET before reading registries, and unloads', async t => {
+  const h = await setup(t)
+  assert.equal((await h.request('/api-hanaworlds-skill-tools', undefined, { cookie: '' })).status, 401)
+  assert.equal((await h.request('/api-hanaworlds-skill-tools', undefined, { origin: 'http://foreign.local' })).status, 403)
+  assert.equal((await h.request('/api-hanaworlds-skill-tools', {})).status, 404)
+  assert.equal((await h.request('/api-hanaworlds-skill-tools/unknown')).status, 404)
+  assert.deepEqual(h.registryReads, [])
+  await h.bridgeFiber.dispose()
+  assert.equal((await h.request('/api-hanaworlds-skill-tools')).status, 404)
+  assert.deepEqual(h.registryReads, [])
+})
+
+test('skill-tools reports missing host registries without falling back to Workshop', async t => {
+  const h = await setup(t, false)
+  const response = await h.request('/api-hanaworlds-skill-tools')
+  assert.equal(response.status, 409)
+  assert.equal(response.data.error, 'TOOLS_REGISTRY_UNAVAILABLE')
+  h.ctx.provide('tools', { schemas: () => [] } as any)
+  const missingSkills = await h.request('/api-hanaworlds-skill-tools')
+  assert.equal(missingSkills.status, 409)
+  assert.equal(missingSkills.data.error, 'SKILLS_REGISTRY_UNAVAILABLE')
+})
+
+test('skill-tools relays real DSH registries without executing tools or loading skill bodies', async t => {
+  const h = await setup(t, false)
+  h.ctx.provide('systemPrompt', { tools() {} } as any)
+  const toolsFiber = await h.ctx.plugin(ToolRuntime), skillsFiber = await h.ctx.plugin(SkillRegistry)
+  t.after(async () => { await skillsFiber.dispose(); await toolsFiber.dispose() })
+  const disposeTool = h.ctx.tools.register({ name: 'hanaworlds_context', description: '读取当前世界、选中对象与放置区域事实。',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: { schema: { type: 'null' }, render: () => [] },
+    async execute() { throw new Error('TOOL_MUST_NOT_EXECUTE') } })
+  h.ctx.skills.registerProvider(() => ({ name: 'FIXTURE/skills', async list() { return [{
+    name: 'hanaworlds-building', description: '依照世界源声明的几何与材质词表构建。', source: 'runtime',
+    provider: 'FIXTURE/skills', invocation: { modelInvocable: true, userInvocable: true }, rank: 600, locator: 'opaque',
+  }] }, async get() { throw new Error('SKILL_BODY_MUST_NOT_LOAD') } }))
+  const response = await h.request('/api-hanaworlds-skill-tools')
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.data, { tools: h.ctx.tools.schemas(), skills: await h.ctx.skills.snapshot() })
+  assert.deepEqual(Object.keys(response.data.tools[0]).sort(), ['description', 'name', 'parameters'])
+  assert.doesNotMatch(JSON.stringify(response.data), /nodeName|param2|mapblock|flat\s+mapgen|["']?unit["']?\s*:\s*["']node["']/i)
+  disposeTool()
+  assert.deepEqual((await h.request('/api-hanaworlds-skill-tools')).data.tools, [])
+})
+
+test('skill-tools preserves host discovery errors without cached or Workshop fallback', async t => {
+  const h = await setup(t, false)
+  h.ctx.provide('tools', { schemas: () => [] } as any)
+  h.ctx.provide('skills', { async snapshot() { throw new Error('FIXTURE_DISCOVERY_FAILED') } } as any)
+  const response = await h.request('/api-hanaworlds-skill-tools')
+  assert.equal(response.status, 409)
+  assert.equal(response.data.error, 'FIXTURE_DISCOVERY_FAILED')
 })
 
 test('HTTP invoke enriches interaction input from the selected Core session and Canvas context', async t => {

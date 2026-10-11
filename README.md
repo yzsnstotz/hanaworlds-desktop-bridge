@@ -19,6 +19,8 @@ Required: `webServer`, `connection` (the host's `requestRejection` login and Hos
 
 Optional consumers: `agents`, `sessionController`, `sessionPersistence` for standard human prompt submission and durable Core inputs; `attachments` for images; `hanaworldsWorldAdapterV6`, `hanaworldsWorldFacts`, `hanaworldsWorldRevisionOracle`, `hanaworldsCompilerConfig`, and the existing Painter/Brush/Canvas/Adapter region services. Missing suppliers produce named gaps. The plugin does not launch a model, choose a model/provider, generate engine configuration or invent material data.
 
+The skill-tools route requires the host's `tools` and `skills` registries. Each GET returns `{tools: ctx.tools.schemas(), skills: await ctx.skills.snapshot()}` from the global registry view, including the skill snapshot's `complete` flag. This read-only display uses provider-owned descriptions and schemas; it does not execute tools, load skill bodies, or call Workshop/region services. Missing registries return `TOOLS_REGISTRY_UNAVAILABLE` or `SKILLS_REGISTRY_UNAVAILABLE`; discovery errors propagate without a substitute catalog. Tool and skill providers own their engine-neutral vocabulary: opaque material references, neutral orientation values, and geometry/partition facts declared by the current world source.
+
 Prepare and Confirm submit only user input to the host's `sessionController.prompt` for the selected Core Session. The host owns that Session's provider, model and reasoning effort; model changes between submissions remain effective. The bridge does not register `hanaworldsModelRoute`, override `agent/request`, or select a fallback when host prompt admission fails. This routing delegation was already present in the desktop-bridge-01 composition; desktop-bridge-02 adds regression coverage for model changes, separate Session selections and host rejection.
 
 Providers: `hanaworldsDesktopBridge` (transport, view bindings, confirmations, image reader and deployment policy), `hanaworldsCatalogue`, `hanaworldsSafetyProfile`, `hanaworldsCapabilities`, `hanaworldsWorldInspectionContext`, `hanaworldsPainterLocalFacts`, `hanaworldsMediaAuthority`. Painter/Brush region ports are provided only when the peer publishes the corresponding methods and handshake. Fiber unload removes services/routes, invalidates active view handles, and restores wrapped peer calls.
@@ -43,7 +45,7 @@ Every route uses the host's request rejection policy. JSON bodies are bounded to
 | workshop-invoke / invoke(input) | POST `/api-hanaworlds-workshop/invoke` `{windowKey,lease,input}` |
 | deployment facts | POST `/api-hanaworlds-deployment` `{windowKey,lease}` |
 | region seam diagnostics | GET `/api-hanaworlds-region` |
-| Workshop write-tool descriptions | GET `/api-hanaworlds-skill-tools` |
+| Host tool schemas and skill catalog snapshot | GET `/api-hanaworlds-skill-tools` |
 
 The invoke body contains interaction input, for example:
 
