@@ -1,5 +1,6 @@
 /** Verify the public tag, lock, installed package, and the actual schemas used by this card. */
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -9,8 +10,8 @@ const root = new URL('../', import.meta.url)
 const json = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const manifest = json('package.json'), lock = json('package-lock.json')
 const pin = 'git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.9.0'
-assert.equal(manifest.dependencies['hanaworlds-contracts'], pin)
-assert.equal(lock.packages[''].dependencies['hanaworlds-contracts'], pin)
+assert.equal(manifest.devDependencies['hanaworlds-contracts'], pin)
+assert.equal(lock.packages[''].devDependencies['hanaworlds-contracts'], pin)
 const remote = execFileSync('git', ['ls-remote', 'https://github.com/yzsnstotz/hanaworlds-contracts.git',
   'refs/tags/v2.9.0', 'refs/tags/v2.9.0^{}'], { cwd: fileURLToPath(root), encoding: 'utf8' }).trim().split('\n')
 const rows = remote.map(row => row.split(/\s+/)), tag = rows.find(row => row[1] === 'refs/tags/v2.9.0^{}')
@@ -19,6 +20,16 @@ assert.ok(tag, 'published v2.9.0 tag must exist')
 const locked = lock.packages['node_modules/hanaworlds-contracts']
 assert.equal(locked.resolved.split('#').at(-1), tag[0])
 assert.equal(locked.version, '2.9.0')
+assert.equal(locked.dev, true)
+const provenance = json('lib/build-provenance.json')
+assert.equal(provenance.contracts.resolved, locked.resolved)
+assert.equal(provenance.contracts.sha, tag[0])
+const digest = path => createHash('sha256').update(readFileSync(new URL(path, root))).digest('hex')
+assert.equal(provenance.lockSha256, digest('package-lock.json'))
+for (const row of [...provenance.sources, ...provenance.inputs.filter(row => row.kind === 'released-supply'), ...provenance.outputs]) assert.equal(digest(row.path), row.sha256, `source/artifact hash: ${row.path}`)
+assert.ok(provenance.inputs.some(row => row.path.startsWith('node_modules/hanaworlds-contracts/dist/')))
+assert.ok(provenance.inputs.every(row => row.path.startsWith('lib/') || row.path.startsWith('node_modules/hanaworlds-contracts/dist/') || row.path.startsWith('node_modules/canonicalize/')))
+for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) assert.ok(!manifest[section]?.['hanaworlds-contracts'])
 assert.equal(json('node_modules/hanaworlds-contracts/package.json').version, '2.9.0')
 assert.equal(version, '2.9.0')
 checkContractHandshake(contractHandshake, { wires: ['session/v5', 'canvas/v7', 'world-facts/v1', 'world-inspection/v1'], factProfiles: [] })

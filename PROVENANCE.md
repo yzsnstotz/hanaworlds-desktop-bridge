@@ -261,3 +261,22 @@ Baseline: `80c98f8`. D-5 stays dependency usage of DeepSeek Harness; no upstream
 | hanaworlds-contracts | 2.9.0 | MIT | https://github.com/yzsnstotz/hanaworlds-contracts/tree/v2.9.0 | ReadPluginRoles types, evidence table, derivation, binding validation, fixture |
 
 Evidence is SOURCE/FIXTURE with real local Cordis/HTTP. Tests mount fixture plugins as fibers carrying `fiber.entry`, the field cordis-plugin-loader sets; the real DSH host assembly was not run.
+
+# desktop-bridge-contract-build-01
+
+Baseline `412a9b10361236e83560c964d6b55b64916d412a`. The exact development supply
+is `hanaworlds-contracts#v2.9.0` at
+`a892ceeb7047377d108f578161461aa06e0bfe5f` (MIT). The lock's actual
+`git+ssh://git@github.com/yzsnstotz/hanaworlds-contracts.git#<SHA>` resolved identity
+is preserved and checked against the official published Git tag; the manifest
+retains the required git+https tagged devDependency. No upstream change or tag
+release is made. esbuild 0.28.2 (MIT, https://github.com/evanw/esbuild) bundles the
+necessary released runtime after TypeScript 6.0.3 compilation; canonicalize 5.1.0
+(Apache-2.0, https://github.com/erdtman/canonicalize) is bundled as the SDK's exact
+canonicalization supply. pnpm 11.28.5 (MIT, https://github.com/pnpm/pnpm) is a
+pinned development verification tool for fresh default-strict production installs.
+The SDK LICENSE/NOTICE and canonicalize LICENSE accompany the generated code.
+Existing official Cordis/DSH versions, singleton identities and dependency usage
+remain external, with no sibling compiler, handwritten SDK, vendored repository,
+new service or DSH/third-party change. Production probes use protocol-only world
+and workshop doubles, real installed Cordis/Core Session/HTTP, and no SDK runtime.

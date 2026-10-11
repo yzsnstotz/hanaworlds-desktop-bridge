@@ -119,3 +119,35 @@ Region proposal payloads contain `turnRevision`, `intent`, `intentDigest`, `refe
 ## Component scope
 
 desktop-bridge-01 delivers the extraction, standalone plugin, these route adapters, published SDK adaptation and tests. It does not implement new unpublished operations. desktop-bridge-04 adds published lifecycle/world-pairing, page-window leases, ReadInspectionContext and U3. desktop-bridge-05 adds name-confirmed deletion and Canvas retirement concurrency. desktop-bridge-07 supplies current-process HTTP dialogue confirmation solely from public C-session receipts, with displayed-round and supplier identity checks; its model/persistence/world peers remain explicit component fixtures. desktop-bridge-08 supplies full ReadWriteProfile forwarding and source-owned compiler/write-method/avatar projections. desktop-bridge-09 adds page-bound cell/region build routes and Canvas object/history panel refresh. -11 owns undo/redo product routes. `test/build-fixture.ts` supplies minimal published-protocol counterparties; its records and world writes are simulations. Real engine mutation, assembled Shell rendering and owner acceptance remain separate evidence gates.
+
+## Independent production package
+
+`hanaworlds-contracts` is an exact **development** supply at Git tag `v2.9.0`.
+`npm ci` and the normal build compile with TypeScript first (including upstream
+const enums), then esbuild bundles only this module and its needed released
+contract runtime/schema/canonicalization code. Official Cordis/DSH and zod
+packages remain external. There is no compiler implementation or sibling plugin
+in the bundle. `lib/build-provenance.json` records the original resolved Git
+identity, tag SHA, source/input/output SHA-256 values and tool versions; required
+licenses and upstream NOTICE are in `lib/licenses/`.
+
+Declarations preserve the public SDK types and existing calls. TypeScript
+consumers install the same tagged SDK as a **devDependency** when compiling;
+these erased type references do not require a production SDK install. Public
+`fixtures/world-error-relay` remains available; SDK test fixtures are not shipped.
+
+`npm run test:package-boundary` creates a real archive with normal `npm pack`
+lifecycle scripts. Prepack rebuilds and audits the files being archived; postpack
+audits the actual tgz, installs it into a fresh isolated consumer with pinned
+pnpm 11.28.5 defaults, replays its frozen production lock, loads all shipped JS
+entries, exercises real Cordis/Core Session/HTTP carrier behavior against public
+protocol doubles, and runs failing boundary injections. Build and npm test both
+run this gate. Direct `npm run prepack` also performs the complete archive gate.
+No dependency policy, lifecycle scripts, hooks, aliases or allowlists are relaxed.
+Production lock, resolution graph, tgz digest and probe/negative evidence are
+retained in the printed evidence directory. Set `HANAWORLDS_BOUNDARY_RUN` to a
+new directory outside any development checkout to choose its location; otherwise
+it uses a fresh OS temporary directory. The gate refuses inherited SDK resolution.
+These component checks do not establish a full official host, client/UI or owner
+acceptance, real engine writes, reliable guard, complete subscriptions or ten-plugin
+seed completion.
