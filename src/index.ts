@@ -52,6 +52,7 @@ declare module '@deepseek-ai/cordis' {
       deployment: DesktopDeploymentPolicy
       worlds: DesktopSessionWorlds
       lifecycle: DesktopWorldLifecycle
+      build: DesktopBuildBridge
     }
   }
 }
@@ -88,7 +89,8 @@ export function apply(ctx: Context): void {
     revision: () => ctx.get('hanaworldsWorldRevisionOracle') })
   const build = new DesktopBuildBridge(transport, { canvas: () => ctx.get('hanaworldsCanvasV5'),
     adapter: () => ctx.get('hanaworldsWorldAdapterV6'), nativeFacts: () => ctx.get('hanaworldsWorldFacts'),
-    canvasRegion: () => ctx.get('hanaworldsCanvasRegionV1'), inspection: () => inspection })
+    canvasRegion: () => ctx.get('hanaworldsCanvasRegionV1'), adapterRegion: () => ctx.get('hanaworldsWorldAdapterRegionV1'),
+    inspection: () => inspection })
   ctx.effect(() => () => build.close(), 'HanaWorlds peer dispatch teardown')
   const canvasIdentities = new WeakMap<object, string>()
   const views = installDesktopViewBindings(ctx, {
@@ -153,8 +155,8 @@ export function apply(ctx: Context): void {
     workshopIdentity: () => serviceIdentity(ctx.get('hanaworldsWorkshop')),
     runSkill: (session, text, check) => submissions.run(session, text, check),
     pending: (sessionRef, snapshot, context) => transport.pending(sessionRef, snapshot, context) })
-  ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy, worlds, lifecycle })
-  installRoutes(ctx, { views, confirm, transport, worlds, lifecycle, policy, region: async () => region.status(),
+  ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy, worlds, lifecycle, build })
+  installRoutes(ctx, { views, confirm, transport, worlds, lifecycle, policy, build, region: async () => region.status(),
     async tools() {
       const tools = ctx.get('tools'), skills = ctx.get('skills')
       if (!tools) throw new Error('TOOLS_REGISTRY_UNAVAILABLE')

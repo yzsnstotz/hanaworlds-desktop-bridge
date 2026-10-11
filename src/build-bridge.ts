@@ -1,8 +1,11 @@
 /** In-process dispatch ordering: Workshop calls Canvas; only Canvas calls Adapter mutators. */
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { validateRequest, validateBoundResponse, validateType, type MaterialSourceFactsPort } from 'hanaworlds-contracts'
-import { sameLocalContext, type DomainPort } from './local-protocol.ts'
+import { randomUUID } from 'node:crypto'
+import { validateRequest, validateBoundResponse, validateRegionCommit, validateType,
+  checkProtocolCompatibility, protocolRequirement, regionCapabilities, type MaterialSourceFactsPort } from 'hanaworlds-contracts'
+import { callLocal, sameLocalContext, type DomainPort } from './local-protocol.ts'
 import type { DesktopWorkshopTransport } from './workshop-transport.ts'
+import type { DesktopBindingView } from './view-binding.ts'
 import { serviceIdentity as same } from './image-media.ts'
 export type { DomainPort } from './local-protocol.ts'
 export interface NativeFactsPort {
@@ -24,12 +27,23 @@ interface Services {
   nativeFacts(): NativeFactsPort | undefined
   /** Canvas's own `hanaworldsCanvasRegionV1`; Canvas alone reaches the Adapter region port. */
   canvasRegion?(): RegionCallPort | undefined
+  adapterRegion?(): RegionCallPort | undefined
 }
 export interface RegionCallPort { readonly protocolHandshake: unknown; call(operation: string, request: unknown): Promise<unknown> }
 const canvasRegionOperations = new Set(['ApplyRegionCommit', 'UndoRegionCommit'])
-interface Invocation { captured: ReturnType<DesktopWorkshopTransport['trustedInvocation']>; canvas: DomainPort; adapter: DomainPort | undefined; open: boolean }
+const adapterRegionOperations = new Set(['ReadRegion', 'WriteRegion'])
+const requireRegionProtocol = (wire: string, handshake: unknown) => checkProtocolCompatibility(handshake ?? null,
+  [protocolRequirement(wire, regionCapabilities.map(capability => capability.id).filter(id => id.startsWith(`${wire}:`)).sort())])
+interface Invocation {
+  captured: ReturnType<DesktopWorkshopTransport['trustedInvocation']>
+  canvas: DomainPort
+  adapter: DomainPort | undefined
+  canvasRegion: RegionCallPort | undefined
+  adapterRegion: RegionCallPort | undefined
+  open: boolean
+}
 const adapterReads = new Set(['DiscoverConnections', 'ListWorlds', 'ReadLocalConnection', 'InspectWorld', 'InspectRegion'])
-const canvasReads = new Set(['ReadWorldSelectionContext', 'ListWorldConnections', 'SelectWorldConnection', 'SwitchWorldConnection', 'ListObjects'])
+const canvasReads = new Set(['ReadWorldSelectionContext', 'ListWorldConnections', 'SelectWorldConnection', 'SwitchWorldConnection', 'ListObjects', 'HistoryQuery'])
 const retirementOperations = new Set(['ListWorldSelections', 'ReserveWorldRetirement', 'ReleaseWorldRetirement'])
 function deny(): never { throw new Error('LOCAL_DISPATCH_REQUIRED') }
 /** The call stack, not a serialized role or permission field, separates internal world writes. */
@@ -38,6 +52,7 @@ export class DesktopBuildBridge {
   private readonly active = new AsyncLocalStorage<Invocation>()
   private readonly checking = new AsyncLocalStorage<boolean>()
   private readonly canvasCall = new AsyncLocalStorage<Invocation>()
+  private readonly regionCanvasCall = new AsyncLocalStorage<Invocation>()
   private readonly canvasInspection = new AsyncLocalStorage<unknown>()
   private readonly wrapped = new WeakSet<object>()
   private readonly disposers: (() => void)[] = []
@@ -46,28 +61,45 @@ export class DesktopBuildBridge {
     const canvas = this.services.canvas(), adapter = this.services.adapter()
     if (canvas) this.wrap(canvas, 'canvas')
     if (adapter) this.wrap(adapter, 'adapter')
-    const region = this.services.canvasRegion?.()
-    if (region) this.wrapRegion(region)
+    const region = this.services.canvasRegion?.(), adapterRegion = this.services.adapterRegion?.()
+    if (region) this.wrapRegion(region, 'canvas')
+    if (adapterRegion) this.wrapRegion(adapterRegion, 'adapter')
   }
   /** Canvas region transactions run only inside a live Host region dispatch for the same Session/world. */
-  private wrapRegion(port: RegionCallPort): void {
+  private wrapRegion(port: RegionCallPort, kind: 'canvas' | 'adapter'): void {
     if (this.wrapped.has(same(port) ?? port)) return
     const registered = same(port) ?? port
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Restored verbatim and called with its owning service.
     const original = registered.call
-    const { active, checking } = this
+    const { active, checking, services, canvasCall, regionCanvasCall } = this
     const wrapper = async function(this: RegionCallPort, operation: string, raw: unknown): Promise<unknown> {
       const scope = active.getStore()
-      if (!scope?.open || !canvasRegionOperations.has(operation)) deny()
+      if (!scope?.open || !(kind === 'canvas' ? canvasRegionOperations : adapterRegionOperations).has(operation)) deny()
+      if (kind === 'adapter' && regionCanvasCall.getStore() !== scope) deny()
+      const peers = () => {
+        if (same(services.canvasRegion?.()) !== same(scope.canvasRegion)
+          || same(services.adapterRegion?.()) !== same(scope.adapterRegion)
+          || same(port) !== same(kind === 'canvas' ? scope.canvasRegion : scope.adapterRegion)) deny()
+      }
+      peers()
       const decode = validateRequest as (wire: string, operation: string, raw: unknown) => Record<string, unknown>
-      const request = decode('canvas-region/v3', operation, raw)
+      const wire = kind === 'canvas' ? 'canvas-region/v3' : 'world-adapter-region/v3'
+      requireRegionProtocol(wire, port.protocolHandshake)
+      if (kind === 'canvas') requireRegionProtocol('world-adapter-region/v3', scope.adapterRegion?.protocolHandshake)
+      const request = decode(wire, operation, raw)
       const current = scope.captured.localContext
       if (request.sessionRef !== scope.captured.sessionRef || request.worldRef !== current.worldRef
         || !sameLocalContext(request.localContext as typeof current, current)) deny()
       await checking.run(true, () => scope.captured.check())
-      const response = await original.call(this, operation, request)
+      peers()
+      const call = () => original.call(this, operation, request)
+      const response = kind === 'canvas'
+        ? await canvasCall.run(scope, () => regionCanvasCall.run(scope, call)) : await call()
       await checking.run(true, () => scope.captured.check())
-      return response
+      peers()
+      if (kind === 'canvas' && operation === 'ApplyRegionCommit') return validateRegionCommit(request, response)
+      const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
+      return validate(wire, operation, request, response)
     }
     registered.call = wrapper; this.wrapped.add(registered)
     this.disposers.push(() => { if (registered.call === wrapper) registered.call = original })
@@ -134,8 +166,52 @@ export class DesktopBuildBridge {
     this.bind()
     const captured = this.transport.trustedInvocation(), canvas = this.services.canvas()
     if (!canvas) throw new Error('CANVAS_UNAVAILABLE')
-    const scope: Invocation = { captured, canvas, adapter: this.services.adapter(), open: true }
+    const scope: Invocation = { captured, canvas, adapter: this.services.adapter(),
+      canvasRegion: this.services.canvasRegion?.(), adapterRegion: this.services.adapterRegion?.(), open: true }
     return this.active.run(scope, async () => { try { return await call() } finally { scope.open = false } })
+  }
+  /** Read panel records from the captured Canvas, fenced by the page lease on both sides of every call. */
+  private panelReader(view: DesktopBindingView, assertLive: () => Promise<void>) {
+    this.bind()
+    const canvas = this.services.canvas()
+    if (!canvas) throw new Error('CANVAS_UNAVAILABLE')
+    const check = async () => {
+      await assertLive()
+      if (same(this.services.canvas()) !== same(canvas)) throw new Error('CANVAS_REPLACED')
+    }
+    const fields = () => ({ contractVersion: 'canvas/v7' as const, requestId: randomUUID(),
+      sessionRef: view.sessionId, worldRef: view.worldRef, localContext: view.localContext })
+    return {
+      async objects() {
+        await check()
+        const result = await callLocal(canvas, 'canvas/v7', 'ListObjects', { ...fields(), expectedRevision: null })
+        await check()
+        if (result.objects.some(object => object.worldRef !== view.worldRef)) throw new Error('CURRENT_WORLD_MISMATCH')
+        return result
+      },
+      async history(objectRef: string) {
+        await check()
+        const result = await callLocal(canvas, 'canvas/v7', 'HistoryQuery', { ...fields(), objectRef, expectedHistoryRevision: null })
+        await check()
+        if (result.objectRef !== objectRef) throw new Error('HISTORY_OBJECT_MISMATCH')
+        return result
+      },
+    }
+  }
+  async objects(view: DesktopBindingView, assertLive: () => Promise<void>) {
+    return this.panelReader(view, assertLive).objects()
+  }
+  async history(view: DesktopBindingView, objectRef: string, assertLive: () => Promise<void>) {
+    const reader = this.panelReader(view, assertLive), inventory = await reader.objects()
+    if (!inventory.objects.some(object => object.objectRef === objectRef)) throw new Error('OBJECT_NOT_IN_CURRENT_WORLD')
+    return reader.history(objectRef)
+  }
+  /** Canvas owns both inventories; the bridge never constructs history entries from a build receipt. */
+  async panels(view: DesktopBindingView, assertLive: () => Promise<void>) {
+    const reader = this.panelReader(view, assertLive), objects = await reader.objects()
+    const histories = []
+    for (const object of objects.objects) histories.push(await reader.history(object.objectRef))
+    return { objects, histories }
   }
   /** Read only the actual Adapter public scoped-state port; logical revisions belong to Canvas. */
   async stateProfile(worldRef: string): Promise<unknown> {
