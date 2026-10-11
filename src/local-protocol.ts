@@ -1,5 +1,6 @@
 /** Current public protocol admission for Host-owned peer calls. */
-import { checkContractHandshake, checkProtocolCompatibility, protocolRequirement, validateRequest, validateBoundResponse, type OperationMap, type LocalWorldContext } from 'hanaworlds-contracts'
+import { checkContractHandshake, checkProtocolCompatibility, protocolRequirement, validateRequest, validateBoundResponse, targetWorldRef,
+  ContractError, type OperationMap, type LocalWorldContext, type Error as PublicError } from 'hanaworlds-contracts'
 export interface DomainPort {
   readonly contractHandshake: unknown
   /** A peer may advertise wire majors and capabilities independently of its package identity. */
@@ -20,15 +21,48 @@ export interface DomainPort {
 }
 type Result<W extends keyof OperationMap, N extends keyof OperationMap[W]> =
   OperationMap[W][N] extends { response: { result: infer R } } ? NonNullable<R> : never
+/** A peer's public Error carried through the Host unchanged: every field, including the 2.7.0 target
+ * `worldRef` and `mutationState`, stays in `publicError`; the message stays the bare code for existing callers. */
+export class RelayedContractError extends ContractError {
+  constructor(error: PublicError, message: string = error.code) {
+    const { code, phase, reason, ...details } = error
+    super(code, phase, reason, details)
+    this.name = 'RelayedContractError'
+    this.message = message
+  }
+}
+
+/** The target world a peer error names must be the one the admitted request or the Host's real binding
+ * determines; the SDK already binds request selectors, this adds the Host's own Session binding.
+ * With neither fact the provider's own statement passes as-is: the Host never adds or guesses a world.
+ * @param request - Admitted request the error answers.
+ * @param error - Decoded public Error.
+ * @param boundWorldRef - Host's current real Session→world binding, if any.
+ */
+export function checkErrorWorld(request: unknown, error: PublicError, boundWorldRef?: string): void {
+  if (error.worldRef === undefined) return
+  const sessionRef = (request as { sessionRef?: unknown }).sessionRef
+  const target = targetWorldRef(request, typeof sessionRef === 'string' && boundWorldRef !== undefined
+    ? { [sessionRef]: boundWorldRef } : {})
+  if (target !== undefined && error.worldRef !== target) throw new ContractError('CURRENT_WORLD_MISMATCH', 'validate', 'REVISION_CHANGED')
+}
+
+/** Throw a decoded peer error without reducing it to its code. */
+export function relayError(request: unknown, error: PublicError, boundWorldRef?: string, message?: string): never {
+  checkErrorWorld(request, error, boundWorldRef)
+  throw new RelayedContractError(error, message)
+}
+
 /** Admit both directions and return only a successful correlated public result.
  * @param port - Captured peer service.
  * @param wire - Current protocol version.
  * @param operation - Public operation on that protocol.
  * @param raw - Request to validate before dispatch.
- * @returns Decoded non-null result; peer errors remain errors.
+ * @param boundWorldRef - The Host's current real Session→world binding, when it has one.
+ * @returns Decoded non-null result; a peer error is thrown as {@link RelayedContractError}.
  */
 export async function callLocal<W extends keyof OperationMap, N extends keyof OperationMap[W] & string>(
-  port: DomainPort, wire: W, operation: N, raw: unknown): Promise<Result<W, N>> {
+  port: DomainPort, wire: W, operation: N, raw: unknown, boundWorldRef?: string): Promise<Result<W, N>> {
   if (port.protocolHandshake !== undefined) {
     const capabilities = wire === 'world-adapter/v8'
       ? ['world-adapter/v8:callback-free-write', 'world-adapter/v8:write-path-state-facts'] : []
@@ -39,9 +73,9 @@ export async function callLocal<W extends keyof OperationMap, N extends keyof Op
   const request = validateRequest(wire, operation, raw)
   const response = validateBoundResponse(wire, operation, request, await port.call(operation, request)) as {
     readonly result: unknown
-    readonly error: { readonly code: string } | null
+    readonly error: PublicError | null
   }
-  if (response.error) throw new Error(response.error.code)
+  if (response.error) relayError(request, response.error, boundWorldRef)
   if (response.result === null) throw new Error('LOCAL_RESULT_UNAVAILABLE')
   return response.result as Result<W, N>
 }

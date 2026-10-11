@@ -27,7 +27,7 @@ export class DesktopSessionWorlds {
     const port = this.services.workshop()
     if (!port) throw new Error('WORKSHOP_UNAVAILABLE: needs hanaworldsWorkshop (C-session) to learn this session\'s world')
     const snapshot = await callLocal(port, 'session/v5', 'StartOrResumeSession',
-      { contractVersion: 'session/v5', sessionRef, requestId: randomUUID(), expectedRevision: null })
+      { contractVersion: 'session/v5', sessionRef, requestId: randomUUID(), expectedRevision: null }, this.worlds.get(sessionRef))
     if (this.services.session(sessionRef) !== session) throw new Error('SESSION_NOT_FOUND')
     if (serviceIdentity(this.services.workshop()) !== serviceIdentity(port)) throw new Error('WORKSHOP_REPLACED')
     const worldRef = snapshot.context.activeWorldRef
@@ -64,7 +64,7 @@ export class DesktopSessionWorlds {
     try {
       await check()
       const snapshot = await callLocal(workshop, 'session/v5', 'StartOrResumeSession',
-        { contractVersion: 'session/v5', requestId: randomUUID(), sessionRef, expectedRevision: null })
+        { contractVersion: 'session/v5', requestId: randomUUID(), sessionRef, expectedRevision: null }, this.worlds.get(sessionRef))
       await check()
       const launched = await lifecycle.call('launch', { worldId })
       await check()

@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
 import { validateRequest, validateBoundResponse, validateRegionCommit, validateType,
   checkProtocolCompatibility, protocolRequirement, regionCapabilities, type MaterialSourceFactsPort } from 'hanaworlds-contracts'
-import { callLocal, sameLocalContext, type DomainPort } from './local-protocol.ts'
+import { callLocal, checkErrorWorld, sameLocalContext, type DomainPort } from './local-protocol.ts'
 import type { DesktopWorkshopTransport } from './workshop-transport.ts'
 import type { DesktopBindingView } from './view-binding.ts'
 import { serviceIdentity as same } from './image-media.ts'
@@ -47,6 +47,12 @@ const adapterReads = new Set(['DiscoverConnections', 'ListWorlds', 'ReadLocalCon
 const canvasReads = new Set(['ReadWorldSelectionContext', 'ListWorldConnections', 'SelectWorldConnection', 'SwitchWorldConnection', 'ListObjects', 'HistoryQuery'])
 const retirementOperations = new Set(['ListWorldSelections', 'ReserveWorldRetirement', 'ReleaseWorldRetirement'])
 function deny(): never { throw new Error('LOCAL_DISPATCH_REQUIRED') }
+/** A decoded peer refusal goes back to its caller whole, once its target world is this scope's world. */
+function refusal(request: unknown, response: unknown, worldRef: string): unknown {
+  const error = (response as { error?: unknown } | null)?.error
+  if (typeof error === 'object' && error !== null) checkErrorWorld(request, error as never, worldRef)
+  return response
+}
 /** The call stack, not a serialized role or permission field, separates internal world writes. */
 export class DesktopBuildBridge {
   private readonly retirement = new AsyncLocalStorage<{ canvas: DomainPort; worldRef: string; open: boolean }>()
@@ -106,9 +112,10 @@ export class DesktopBuildBridge {
       await checking.run(true, () => scope.captured.check())
       peers()
       liveFrame()
-      if (kind === 'canvas' && operation === 'ApplyRegionCommit') return validateRegionCommit(request, response)
       const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
-      return validate(wire, operation, request, response)
+      const decoded = kind === 'canvas' && operation === 'ApplyRegionCommit' ? validateRegionCommit(request, response)
+        : validate(wire, operation, request, response)
+      return refusal(request, decoded, current.worldRef)
     }
     registered.call = wrapper; this.wrapped.add(registered)
     this.disposers.push(() => { if (registered.call === wrapper) registered.call = original })
@@ -169,7 +176,7 @@ export class DesktopBuildBridge {
       await checking.run(true, () => scope.captured.check())
       liveFrame()
       const validate = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
-      return validate(wire, operation, request, response)
+      return refusal(request, validate(wire, operation, request, response), current.worldRef)
     }
     registered.call = wrapper; this.wrapped.add(registered)
     this.disposers.push(() => { if (registered.call === wrapper) registered.call = original })
@@ -204,14 +211,14 @@ export class DesktopBuildBridge {
     return {
       async objects() {
         await check()
-        const result = await callLocal(canvas, 'canvas/v7', 'ListObjects', { ...fields(), expectedRevision: null })
+        const result = await callLocal(canvas, 'canvas/v7', 'ListObjects', { ...fields(), expectedRevision: null }, view.worldRef)
         await check()
         if (result.objects.some(object => object.worldRef !== view.worldRef)) throw new Error('CURRENT_WORLD_MISMATCH')
         return result
       },
       async history(objectRef: string) {
         await check()
-        const result = await callLocal(canvas, 'canvas/v7', 'HistoryQuery', { ...fields(), objectRef, expectedHistoryRevision: null })
+        const result = await callLocal(canvas, 'canvas/v7', 'HistoryQuery', { ...fields(), objectRef, expectedHistoryRevision: null }, view.worldRef)
         await check()
         if (result.objectRef !== objectRef) throw new Error('HISTORY_OBJECT_MISMATCH')
         return result

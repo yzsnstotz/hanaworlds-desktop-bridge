@@ -15,8 +15,12 @@ export function createViewFixture() {
   const retired = new Set<string>()
   let generation = 1
   const requests: { operation: string; request: any }[] = []
+  /** Published-failure hook: operation → the raw response this peer answers with, given the admitted request. */
+  const failures = new Map<string, (request: any) => unknown>()
   return {
-    source: 'FIXTURE' as const, contractHandshake, requests,
+    source: 'FIXTURE' as const, contractHandshake, requests, failures,
+    /** This peer's own Session→world selections, the only trusted binding it may name in an error. */
+    trusted() { return Object.fromEntries([...contexts].filter(([id]) => !absent.has(id)).map(([id, context]) => [id, context.worldRef])) },
     context(id: string) { return absent.has(id) ? null : contexts.get(id) ?? null },
     act(id: string, action: 'revoke' | 'regrant' | 'disconnect' | 'reconnect') {
       const previous = contexts.get(id)
@@ -27,6 +31,12 @@ export function createViewFixture() {
         connectionIncarnationRef: `FIXTURE/incarnation/${generation}` }) }
     },
     async call(operation: string, raw: unknown) {
+      const failure = failures.get(operation)
+      if (failure) {
+        const request: any = validateRequest('canvas/v7', operation as never, raw)
+        requests.push({ operation, request })
+        return failure(request)
+      }
       if (!['ReadWorldSelectionContext', 'SelectWorldConnection', 'ListWorldSelections', 'ReserveWorldRetirement', 'ReleaseWorldRetirement'].includes(operation)) throw new Error('FIXTURE_UNSUPPORTED_CANVAS_OPERATION')
       const request: any = validateRequest('canvas/v7', operation as never, raw)
       requests.push({ operation, request })

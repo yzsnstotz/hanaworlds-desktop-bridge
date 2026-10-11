@@ -2,7 +2,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
 import { validateRequest, validateBoundResponse, checkContractHandshake, validateType, validateRegionProposalRequest, type ClarificationNeed, type LocalWorldContext, type SessionSnapshot } from 'hanaworlds-contracts'
-import { sameLocalContext, type DomainPort } from './local-protocol.ts'
+import { checkErrorWorld, relayError, sameLocalContext, type DomainPort } from './local-protocol.ts'
 import { serviceIdentity as same } from './image-media.ts'
 const operations = new Set(['StartOrResumeSession', 'SwitchWorldContext', 'AppendMultimodalTurn', 'AnswerClarification',
   'ReadSessionTurnDetails', 'ReadCurrentUndoStatus', 'UndoCurrentBuild', 'AdvanceCurrentBuild', 'InvokeAction'])
@@ -98,7 +98,7 @@ export class DesktopWorkshopTransport {
     const input = { contractVersion: 'session/v5' as const, requestId: randomUUID(), sessionRef, expectedRevision: null }
     const packet = validateBoundResponse('session/v5', 'StartOrResumeSession', input,
       await this.dispatch('StartOrResumeSession', input, false, assertLive))
-    if (packet.error) throw new Error(packet.error.code)
+    if (packet.error) relayError(input, packet.error, context.worldRef)
     if (!packet.result) deny()
     let snapshot = packet.result
     if (!sameLocalContext(snapshot.context.localContext, context)) {
@@ -107,7 +107,7 @@ export class DesktopWorkshopTransport {
         selectionRevision: context.selectionRevision, localContext: context }
       const switched = validateBoundResponse('session/v5', 'SwitchWorldContext', input,
         await this.dispatch('SwitchWorldContext', input, false, assertLive))
-      if (switched.error) throw new Error(switched.error.code)
+      if (switched.error) relayError(input, switched.error, context.worldRef)
       if (!switched.result) deny()
       snapshot = switched.result
     }
@@ -151,6 +151,8 @@ export class DesktopWorkshopTransport {
       await this.check(scope)
       const decode = validateBoundResponse as (wire: string, operation: string, request: unknown, response: unknown) => unknown
       const response = decode(wire, operation, request, result)
+      // A peer refusal is returned whole; its target world must be this admitted request's or this Session's.
+      if (record(response) && record(response.error)) checkErrorWorld(request, response.error as never, context.worldRef)
       if (record(response) && response.error === null && record(response.result)) {
         const value = response.result
         if (operation === 'AppendMultimodalTurn' || operation === 'AnswerClarification') {
@@ -235,7 +237,7 @@ export class DesktopWorkshopTransport {
         // public snapshot first; Workshop re-reads its own region context after Painter returns.
         const read = { contractVersion: 'session/v5', requestId: randomUUID(), sessionRef, expectedRevision: null }
         const snapshot = validateBoundResponse('session/v5', 'StartOrResumeSession', read, await port.call('StartOrResumeSession', read))
-        if (snapshot.error) throw new Error(snapshot.error.code)
+        if (snapshot.error) relayError(read, snapshot.error, context.worldRef)
         const turn = snapshot.result?.turns.at(-1)
         if (!turn) throw new Error('INTENT_UNCONFIRMED')
         scope.turnFacts = { turnRevision: turn.turnRevision, briefDigest: turn.referenceBriefDigest }

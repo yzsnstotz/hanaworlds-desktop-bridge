@@ -16,6 +16,7 @@ export const fixtureControls = { purpose: null, dimensions: null, entrancePortal
 export function createWorkshopFixture(canvas: ReturnType<typeof createViewFixture>) {
   const states = new Map<string, { revision: string; turns: any[]; pending: any; localContext: any }>()
   const requests: { operation: string; request: any }[] = []
+  const failures = new Map<string, (request: any) => unknown>()
   const state = (id: string) => {
     if (!states.has(id)) states.set(id, { revision: 'FIXTURE/session/1', turns: [], pending: null, localContext: canvas.context(id) })
     return states.get(id)!
@@ -27,13 +28,15 @@ export function createWorkshopFixture(canvas: ReturnType<typeof createViewFixtur
       referenceBriefDigest: null, intentDigest: null, actionReceiptDigest: null })), capabilities: fixtureCapabilities, sessionDeleteSupported: false,
   })
   return {
-    source: 'FIXTURE' as const, contractHandshake, requests,
+    source: 'FIXTURE' as const, contractHandshake, requests, failures,
     pending(id: string) { return state(id).pending },
     snapshot(id: string) { return snapshot(id, state(id)) },
     async describeWriteTools() { return { source: 'FIXTURE', methods: [] } },
     async call(operation: string, raw: unknown) {
       const request: any = validateRequest('session/v5', operation as never, raw)
       requests.push({ operation, request })
+      const failure = failures.get(operation)
+      if (failure) return failure(request)
       const current = state(request.sessionRef)
       const packet = (result: unknown, error: unknown = null) => validateBoundResponse('session/v5', operation as never, request,
         { contractVersion: 'session/v5', requestId: request.requestId, result, error })

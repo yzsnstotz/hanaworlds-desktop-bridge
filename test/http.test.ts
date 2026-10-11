@@ -6,7 +6,9 @@ import { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import { SkillRegistry } from '@deepseek-ai/dsh-skill'
 import lifecycleFixture from 'hanaworlds-contracts/fixtures/world-lifecycle' with { type: 'json' }
-import { createWorldLifecycleMock, validateType, digestValue } from 'hanaworlds-contracts'
+import worldErrorFixture from 'hanaworlds-contracts/fixtures/world-error' with { type: 'json' }
+import { createWorldLifecycleMock, validateType, digestValue, worldUnavailableError } from 'hanaworlds-contracts'
+import relayFixture from 'hanaworlds-desktop-bridge/fixtures/world-error-relay' with { type: 'json' }
 import * as plugin from 'hanaworlds-desktop-bridge'
 import { createViewFixture, fixtureIds } from './view-fixture.ts'
 import { createWorkshopFixture, fixtureControls } from './workshop-fixture.ts'
@@ -861,6 +863,21 @@ test('panel failures preserve a verified mutation receipt and never repeat the b
   assert.equal(h.buildFixture!.calls.filter(op => op === 'AdvanceCurrentBuild').length, 1)
 })
 
+test('a Canvas panel refusal after a verified build keeps its whole error and never repeats or undoes the build', async t => {
+  const h = await confirmedBuild(t)
+  h.buildFixture!.state.panelRefusal = request => ({ contractVersion: 'canvas/v7', requestId: request.requestId, result: null,
+    error: worldUnavailableError(request, canvasUnavailable, {}) })
+  const built = await h.request('/api-hanaworlds-build/advance', { ...h.binding, payload: h.payload })
+  assert.equal(built.status, 200, JSON.stringify(built.data))
+  assert.equal(built.data.result.result.receipt.status, 'VERIFIED')
+  assert.equal(built.data.panels, null)
+  assert.equal(built.data.panelError, 'CAPABILITY_UNAVAILABLE')
+  assert.deepEqual(built.data.panelContractError, { ...canvasUnavailable, worldRef: 'fixture-world' })
+  const calls = h.buildFixture!.calls
+  assert.equal(calls.filter(op => op === 'AdvanceCurrentBuild').length, 1)
+  assert.ok(!calls.some(op => /Undo|Redo/.test(op)))
+})
+
 test('panels reject uncorrelated Canvas records and stale page leases', async t => {
   const h = await confirmedBuild(t)
   await h.request('/api-hanaworlds-build/advance', { ...h.binding, payload: h.payload })
@@ -967,4 +984,117 @@ test('unconfirmed or pending cell builds leave the Canvas panels unchanged', asy
   assert.deepEqual(pending.data.panels.objects.objects, [])
   assert.ok(!confirmed.buildFixture!.calls.includes('CreateObject'))
   assert.deepEqual((await confirmed.request('/api-hanaworlds-objects/panels', confirmed.binding)).data, pending.data.panels)
+})
+
+/** Published failure templates (hanaworlds-contracts fixtures/world-error) without their fixture world. */
+const template = (title: string) => {
+  const { worldRef: _world, ...error } = worldErrorFixture.exchanges.find(x => x.title === title)!.response.error!
+  return error
+}
+const sessionUnavailable = template('no selector: provider resolves the trusted Session binding')
+const canvasUnavailable = template('request worldRef names the target world')
+/** A peer answering with a published failure whose target world it determines itself (request selector or its own binding). */
+const refuse = (wire: string, error: object, trusted: () => Record<string, string>) => (request: any) =>
+  ({ contractVersion: wire, requestId: request.requestId, result: null, error: worldUnavailableError(request, error, trusted()) })
+/** A peer answering with exactly this raw error. */
+const answer = (wire: string, error: unknown) => (request: any) => ({ contractVersion: wire, requestId: request.requestId, result: null, error })
+const relay = (title: string) => relayFixture.relays.find(x => x.title === title)!
+const rejected = (title: string) => relayFixture.rejected.find(x => x.title === title)!
+const mutations = ['ApplyRecoverableCommit', 'ApplyRegionCommit', 'Undo', 'Redo', 'UndoRegionCommit', 'CreateObject',
+  'AdvanceCurrentBuild', 'UndoCurrentBuild', 'AppendMultimodalTurn', 'AnswerClarification']
+/** The whole failure path ran each refused operation exactly `times` and nothing that writes, undoes or redoes. */
+function noWrites(h: { canvas: { requests: { operation: string }[] }; workshop: { requests: { operation: string }[] } }) {
+  for (const { operation } of [...h.canvas.requests, ...h.workshop.requests]) assert.ok(!mutations.includes(operation), operation)
+}
+const count = (requests: { operation: string }[], operation: string) => requests.filter(r => r.operation === operation).length
+
+test('Session refusal while selecting keeps each conversation\'s target world and mutationState through the real route', async t => {
+  const h = await setup(t)
+  h.workshop.failures.set('StartOrResumeSession', refuse('session/v5', sessionUnavailable, () => h.canvas.trusted()))
+  const expected = relay('Session refusal while publishing a conversation names that conversation\'s world')
+  for (const [index, id] of fixtureIds.entries()) {
+    const page = (await h.request('/api-hanaworlds-view/window', {})).data
+    const response = await h.request('/api-hanaworlds-view/select', { ...page, sessionId: id })
+    assert.equal(response.status, expected.status)
+    assert.deepEqual(response.data, { ...expected.body, contractError: { ...expected.body.contractError, worldRef: `FIXTURE/world/${index + 1}` } })
+    assert.equal(response.data.contractError.mutationState, 'NONE')
+    assert.equal(count(h.workshop.requests, 'StartOrResumeSession'), index + 1)
+  }
+  assert.deepEqual(h.workshop.requests.map(r => r.operation), ['StartOrResumeSession', 'StartOrResumeSession'])
+  assert.equal(h.canvas.requests.length, 0)
+})
+
+test('Canvas refusal of panel reads keeps each conversation\'s and the switched current world through the real route', async t => {
+  const h = await setup(t)
+  const alpha = await h.bind(fixtureIds[0]), beta = await h.bind(fixtureIds[1])
+  h.canvas.failures.set('ListObjects', refuse('canvas/v7', canvasUnavailable, () => h.canvas.trusted()))
+  const expected = relay('Canvas refusal of a panel read names the bound world')
+  const first = await h.request('/api-hanaworlds-objects/list', { windowKey: alpha.windowKey, lease: alpha.lease })
+  assert.equal(first.status, expected.status)
+  assert.deepEqual(first.data, expected.body)
+  const second = await h.request('/api-hanaworlds-objects/list', { windowKey: beta.windowKey, lease: beta.lease })
+  assert.deepEqual(second.data.contractError, { ...expected.body.contractError, worldRef: 'FIXTURE/world/2' })
+  // Switch the first conversation; the refusal now names its new current world, never the previous one.
+  const switched = await h.request('/api-hanaworlds-worlds/connect', { windowKey: alpha.windowKey, sessionId: fixtureIds[0], worldId: deletion.worldId })
+  assert.equal(switched.status, 200, JSON.stringify(switched.data))
+  const third = await h.request('/api-hanaworlds-objects/list', { windowKey: alpha.windowKey, lease: switched.data.lease })
+  assert.equal(third.status, 409)
+  assert.deepEqual(third.data.contractError, { ...expected.body.contractError, worldRef: switched.data.worldRef })
+  assert.notEqual(switched.data.worldRef, 'FIXTURE/world/1')
+  const history = await h.request('/api-hanaworlds-objects/history', { windowKey: beta.windowKey, lease: beta.lease, objectRef: 'FIXTURE/object/1' })
+  assert.deepEqual(history.data.contractError, { ...expected.body.contractError, worldRef: 'FIXTURE/world/2' })
+  assert.equal(count(h.canvas.requests, 'ListObjects'), 4)
+  assert.equal(count(h.canvas.requests, 'HistoryQuery'), 0)
+  noWrites(h)
+})
+
+test('Session refusal relayed by workshop invoke stays whole in its envelope', async t => {
+  const h = await setup(t)
+  const page = await h.bind(fixtureIds[0])
+  h.workshop.failures.set('ReadCurrentUndoStatus', refuse('session/v5', sessionUnavailable, () => h.canvas.trusted()))
+  const expected = relay('Session refusal returned whole through workshop invoke')
+  const response = await h.request('/api-hanaworlds-workshop/invoke', { ...page,
+    input: { operation: 'workshop', input: { operation: 'ReadCurrentUndoStatus', payload: {} } } })
+  assert.equal(response.status, expected.status)
+  assert.equal(response.data.result.result, null)
+  assert.deepEqual(response.data.result.error, expected.error)
+  assert.equal(count(h.workshop.requests, 'ReadCurrentUndoStatus'), 1)
+  noWrites(h)
+})
+
+test('mismatched or malformed world errors are refused and pre-2.7 errors still relay', async t => {
+  const h = await setup(t)
+  const page = await h.bind(fixtureIds[0])
+  // Selector-less Session read: the bridge's own binding for this conversation is FIXTURE/world/1.
+  h.workshop.failures.set('StartOrResumeSession', answer('session/v5', { ...sessionUnavailable, worldRef: 'FIXTURE/world/2' }))
+  const otherSession = rejected('Session error naming another world than the conversation\'s bound world')
+  const reselect = await h.request('/api-hanaworlds-view/select', { windowKey: page.windowKey, sessionId: fixtureIds[0] })
+  assert.equal(reselect.status, otherSession.status)
+  assert.deepEqual(reselect.data, otherSession.body)
+  h.workshop.failures.delete('StartOrResumeSession')
+  const bound = await h.bind(fixtureIds[0])
+  const list = (lease = bound) => h.request('/api-hanaworlds-objects/list', { windowKey: lease.windowKey, lease: lease.lease })
+  h.canvas.failures.set('ListObjects', answer('canvas/v7', { ...canvasUnavailable, worldRef: 'FIXTURE/world/2' }))
+  const otherCanvas = rejected('Canvas error naming another world than the request selected')
+  const foreign = await list()
+  assert.equal(foreign.status, otherCanvas.status)
+  assert.deepEqual(foreign.data, otherCanvas.body)
+  // Published malformed errors: empty/null/non-string world, world in reason, free message, path, stack, credential.
+  const malformed = worldErrorFixture.reject.filter(x => !x.title.startsWith('another world'))
+  assert.equal(malformed.length, 8)
+  for (const example of malformed) {
+    h.canvas.failures.set('ListObjects', answer('canvas/v7', example.response.error))
+    const response = await list()
+    assert.equal(response.status, 409, example.title)
+    assert.equal(response.data.contractError, undefined, example.title)
+    assert.equal(response.data.error.split('/')[0], example.code, example.title)
+  }
+  const legacy = relay('pre-2.7 Canvas error without a world still relays')
+  h.canvas.failures.set('ListObjects', answer('canvas/v7', worldErrorFixture.legacy[0].response.error))
+  const old = await list()
+  assert.equal(old.status, legacy.status)
+  assert.deepEqual(old.data, legacy.body)
+  assert.ok(!('worldRef' in old.data.contractError))
+  assert.equal(count(h.canvas.requests, 'ListObjects'), 2 + malformed.length)
+  noWrites(h)
 })

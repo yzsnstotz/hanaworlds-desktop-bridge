@@ -4,7 +4,7 @@ import region from 'hanaworlds-contracts/fixtures/region' with { type: 'json' }
 
 export function installBuildFixture(ctx: any, canvas: any, workshop: any) {
   const objects: any[] = [], histories = new Map<string, any>(), calls: string[] = []
-  const state = { mode: 'VERIFIED', corrupt: '', panelError: false }
+  const state = { mode: 'VERIFIED', corrupt: '', panelError: false, panelRefusal: null as null | ((request: any) => unknown) }
   const handshake = { ...region.peerHandshake, component: 'FIXTURE/region-peers',
     protocols: [...contractProtocols].sort((a, b) => a.protocol < b.protocol ? -1 : a.protocol > b.protocol ? 1 : 0),
     capabilities: regionCapabilities.map(c => c.id).sort() }
@@ -26,6 +26,7 @@ export function installBuildFixture(ctx: any, canvas: any, workshop: any) {
     const request: any = validateRequest('canvas/v7', op as never, raw)
     calls.push(op)
     if (state.panelError && op !== 'CreateObject') throw new Error('FIXTURE_PANEL_UNAVAILABLE')
+    if (state.panelRefusal && op !== 'CreateObject') return state.panelRefusal(request)
     const result = op === 'CreateObject' ? record(request, request.transactionId)
       : op === 'ListObjects' ? { worldRef: request.worldRef, registryRevision: `FIXTURE/registry/${objects.length}`,
         objects: objects.filter(o => o.worldRef === request.worldRef) }

@@ -1,0 +1,67 @@
+{
+  "evidence": "SOURCE/FIXTURE only: published C-canvas/C-session failure templates from hanaworlds-contracts@2.7.0 fixtures/world-error, answered by test peers and carried through the real Cordis HTTP routes; no real world, Canvas, Workshop or Adapter was read.",
+  "contracts": "git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.7.0",
+  "readPath": {
+    "thrown": "HTTP status 409 body.contractError: the peer's whole public Error; body.error stays the bare code (or the existing prefixed text) for older readers",
+    "returned": "a Workshop envelope relayed by /api-hanaworlds-workshop/invoke keeps its error at body.result.error",
+    "panels": "a build route whose follow-up Canvas panel read was refused keeps the build result and adds body.panelContractError beside body.panelError"
+  },
+  "relays": [
+    {
+      "title": "Session refusal while publishing a conversation names that conversation's world",
+      "route": "POST /api-hanaworlds-view/select",
+      "peer": { "wire": "session/v5", "operation": "StartOrResumeSession" },
+      "status": 409,
+      "body": {
+        "error": "ADAPTER_UNAVAILABLE",
+        "contractError": { "code": "ADAPTER_UNAVAILABLE", "phase": "validate", "retryability": "AFTER_NEW_FACTS", "mutationState": "NONE",
+          "transactionRef": null, "causeCode": null, "reason": "REQUIRED_FACT_UNKNOWN", "worldRef": "FIXTURE/world/1" }
+      }
+    },
+    {
+      "title": "Canvas refusal of a panel read names the bound world",
+      "route": "POST /api-hanaworlds-objects/list",
+      "peer": { "wire": "canvas/v7", "operation": "ListObjects" },
+      "status": 409,
+      "body": {
+        "error": "CAPABILITY_UNAVAILABLE",
+        "contractError": { "code": "CAPABILITY_UNAVAILABLE", "phase": "validate", "retryability": "AFTER_NEW_FACTS", "mutationState": "NONE",
+          "transactionRef": null, "causeCode": null, "reason": "REQUIRED_FACT_UNKNOWN", "worldRef": "FIXTURE/world/1" }
+      }
+    },
+    {
+      "title": "Session refusal returned whole through workshop invoke",
+      "route": "POST /api-hanaworlds-workshop/invoke",
+      "peer": { "wire": "session/v5", "operation": "ReadCurrentUndoStatus" },
+      "status": 200,
+      "at": "result.error",
+      "error": { "code": "ADAPTER_UNAVAILABLE", "phase": "validate", "retryability": "AFTER_NEW_FACTS", "mutationState": "NONE",
+        "transactionRef": null, "causeCode": null, "reason": "REQUIRED_FACT_UNKNOWN", "worldRef": "FIXTURE/world/1" }
+    },
+    {
+      "title": "pre-2.7 Canvas error without a world still relays",
+      "route": "POST /api-hanaworlds-objects/list",
+      "peer": { "wire": "canvas/v7", "operation": "ListObjects" },
+      "status": 409,
+      "body": {
+        "error": "CAPABILITY_UNAVAILABLE",
+        "contractError": { "code": "CAPABILITY_UNAVAILABLE", "phase": "validate", "retryability": "AFTER_NEW_FACTS", "mutationState": "NONE",
+          "transactionRef": null, "causeCode": null, "reason": "REQUIRED_FACT_UNKNOWN" }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "title": "Session error naming another world than the conversation's bound world",
+      "route": "POST /api-hanaworlds-view/select",
+      "status": 409,
+      "body": { "error": "CURRENT_WORLD_MISMATCH/validate/REVISION_CHANGED" }
+    },
+    {
+      "title": "Canvas error naming another world than the request selected",
+      "route": "POST /api-hanaworlds-objects/list",
+      "status": 409,
+      "body": { "error": "CURRENT_WORLD_MISMATCH/validate/REVISION_CHANGED" }
+    }
+  ]
+}

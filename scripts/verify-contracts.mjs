@@ -3,24 +3,24 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { contractHandshake, version, checkContractHandshake, validateRequest, validateBoundResponse, createWorldLifecycleMock } from 'hanaworlds-contracts'
+import { contractHandshake, version, checkContractHandshake, validateRequest, validateBoundResponse, createWorldLifecycleMock, createWorldErrorMock } from 'hanaworlds-contracts'
 
 const root = new URL('../', import.meta.url)
 const json = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const manifest = json('package.json'), lock = json('package-lock.json')
-const pin = 'git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.3.0'
+const pin = 'git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.7.0'
 assert.equal(manifest.dependencies['hanaworlds-contracts'], pin)
 assert.equal(lock.packages[''].dependencies['hanaworlds-contracts'], pin)
 const remote = execFileSync('git', ['ls-remote', 'https://github.com/yzsnstotz/hanaworlds-contracts.git',
-  'refs/tags/v2.3.0', 'refs/tags/v2.3.0^{}'], { cwd: fileURLToPath(root), encoding: 'utf8' }).trim().split('\n')
-const rows = remote.map(row => row.split(/\s+/)), tag = rows.find(row => row[1] === 'refs/tags/v2.3.0^{}')
-  ?? rows.find(row => row[1] === 'refs/tags/v2.3.0')
-assert.ok(tag, 'published v2.3.0 tag must exist')
+  'refs/tags/v2.7.0', 'refs/tags/v2.7.0^{}'], { cwd: fileURLToPath(root), encoding: 'utf8' }).trim().split('\n')
+const rows = remote.map(row => row.split(/\s+/)), tag = rows.find(row => row[1] === 'refs/tags/v2.7.0^{}')
+  ?? rows.find(row => row[1] === 'refs/tags/v2.7.0')
+assert.ok(tag, 'published v2.7.0 tag must exist')
 const locked = lock.packages['node_modules/hanaworlds-contracts']
 assert.equal(locked.resolved.split('#').at(-1), tag[0])
-assert.equal(locked.version, '2.3.0')
-assert.equal(json('node_modules/hanaworlds-contracts/package.json').version, '2.3.0')
-assert.equal(version, '2.3.0')
+assert.equal(locked.version, '2.7.0')
+assert.equal(json('node_modules/hanaworlds-contracts/package.json').version, '2.7.0')
+assert.equal(version, '2.7.0')
 checkContractHandshake(contractHandshake, { wires: ['session/v5', 'canvas/v7', 'world-facts/v1', 'world-inspection/v1'], factProfiles: [] })
 const { fixtureCapabilities, createWorkshopFixture } = await import('../test/workshop-fixture.ts')
 const { createViewFixture } = await import('../test/view-fixture.ts')
@@ -60,4 +60,21 @@ for (const operation of ['describe', 'list']) {
   const response = validateBoundResponse('world-lifecycle/v2', operation, request, lifecycle('world-lifecycle/v2', operation, request))
   assert.equal(response.error, null)
 }
-console.log(`contracts v2.3.0: published tag ${tag[0]}, lock, installed SDK, session/v5 canvas/v7 world-facts/v1 world-inspection/v1 and world-lifecycle/v2 fixture roundtrips verified`)
+// 2.7.0 optional Error.worldRef: the published provider mock's refusals decode with their target world,
+// a pre-2.7 seven-field error still decodes, and a wrong world is refused by the installed SDK.
+const worldErrorFixture = (await import('hanaworlds-contracts/fixtures/world-error', { with: { type: 'json' } })).default
+const worldError = createWorldErrorMock(worldErrorFixture)
+for (const example of worldErrorFixture.exchanges.filter(x => x.response.error !== null)) {
+  const response = validateBoundResponse(example.wire, example.operation, example.request,
+    worldError(example.wire, example.operation, example.request))
+  assert.deepEqual({ ...response.error }, example.response.error)
+}
+for (const example of worldErrorFixture.legacy) validateBoundResponse(example.wire, example.operation, example.request, example.response)
+for (const example of worldErrorFixture.reject) {
+  assert.throws(() => validateBoundResponse(example.wire, example.operation, example.request, example.response),
+    error => error.code === example.code, example.title)
+}
+const { RelayedContractError } = await import('../lib/local-protocol.js')
+const relayed = new RelayedContractError(worldErrorFixture.legacy[1].response.error)
+assert.deepEqual({ ...relayed.publicError }, worldErrorFixture.legacy[1].response.error)
+console.log(`contracts v2.7.0: published tag ${tag[0]}, lock, installed SDK, session/v5 canvas/v7 world-facts/v1 world-inspection/v1 world-lifecycle/v2 and world-error (Error.worldRef) fixture roundtrips verified`)

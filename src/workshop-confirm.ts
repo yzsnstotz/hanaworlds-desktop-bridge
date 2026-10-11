@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Session } from '@deepseek-ai/dsh-session'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { validateRequest, validateBoundResponse } from 'hanaworlds-contracts'
-import { sameLocalContext } from './local-protocol.ts'
+import { relayError, sameLocalContext } from './local-protocol.ts'
 import type { ClarificationNeed, LocalWorldContext, SessionSnapshot, SessionTurnDetails } from 'hanaworlds-contracts'
 import { DesktopViewBindings, type DesktopBindingView } from './view-binding.ts'
 
@@ -61,17 +61,17 @@ function sameView(left: DesktopBindingView, right: DesktopBindingView): boolean 
 }
 
 /** Runtime contract admission applies before the port sees a request and after it answers. */
-async function callWorkshop<T>(port: DesktopWorkshopPort, operation: Operation, body: object): Promise<T> {
+async function callWorkshop<T>(port: DesktopWorkshopPort, operation: Operation, body: object, boundWorldRef: string): Promise<T> {
   const validate = ((op: Operation, value: unknown) => validateRequest('session/v5', op, value)) as (op: Operation, value: unknown) => { readonly requestId: string }
   const response = ((op: Operation, request: unknown, value: unknown) => validateBoundResponse('session/v5', op, request, value)) as (op: Operation, request: unknown, value: unknown) => {
     readonly requestId: string
     readonly result: T | null
-    readonly error: { readonly code: string } | null
+    readonly error: import('hanaworlds-contracts').Error | null
   }
   const admitted = validate(operation, body)
   const packet = response(operation, admitted, await port.call(operation, admitted))
   if (packet.requestId !== admitted.requestId) fail('WORKSHOP_MISMATCH')
-  if (packet.error !== null) fail(`WORKSHOP_${packet.error.code}`)
+  if (packet.error !== null) relayError(admitted, packet.error, boundWorldRef, `HANAWORLDS_CONFIRM_WORKSHOP_${packet.error.code}`)
   if (packet.result === null) fail('WORKSHOP_EMPTY_RESULT')
   return packet.result
 }
@@ -107,7 +107,7 @@ export class DesktopWorkshopConfirmations {
     const snapshot = await callWorkshop<SessionSnapshot>(port, 'StartOrResumeSession', {
       contractVersion: 'session/v5', sessionRef: view.sessionId,
       requestId: randomUUID(), expectedRevision: null,
-    })
+    }, view.worldRef)
     await this.checked(windowKey, lease, 'READ', trusted)
     if (snapshot.context.currentSession !== view.sessionId || snapshot.context.activeWorldRef !== view.worldRef
       || !sameLocalContext(snapshot.context.localContext, view.localContext)) fail('WORKSHOP_MISMATCH')
@@ -120,7 +120,7 @@ export class DesktopWorkshopConfirmations {
     const details = await callWorkshop<SessionTurnDetails>(port, 'ReadSessionTurnDetails', {
       contractVersion: 'session/v5', sessionRef: view.sessionId,
       requestId: randomUUID(), localContext: view.localContext,
-    })
+    }, view.worldRef)
     await this.checked(windowKey, lease, 'READ', trusted)
     if (details.sessionRef !== view.sessionId || details.sessionRevision !== snapshot.context.sessionRevision
       || details.turns.length !== snapshot.turns.length

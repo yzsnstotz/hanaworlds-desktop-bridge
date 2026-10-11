@@ -19,6 +19,7 @@ import type { DesktopSessionWorlds } from './session-worlds.ts'
 import type { DesktopDeploymentPolicy } from './deployment-policy.ts'
 import type { DesktopBuildBridge } from './build-bridge.ts'
 import type { DesktopBindingView } from './view-binding.ts'
+import { RelayedContractError } from './local-protocol.ts'
 
 export const VIEW_PATH = '/api-hanaworlds-view'
 export const WORKSHOP_PATH = '/api-hanaworlds-workshop'
@@ -43,6 +44,8 @@ export interface RouteServices {
   tools(): Promise<unknown>
 }
 class RequestError extends Error { constructor(readonly status: number, message: string) { super(message) } }
+/** A peer's whole public Error (code, reason, mutationState, target worldRef …) beside the existing `error` text. */
+const contractError = (error: unknown) => error instanceof RelayedContractError ? { contractError: error.publicError } : {}
 const bad = (message: string): never => { throw new RequestError(400, message) }
 
 function send(res: ServerResponse, status: number, payload: unknown): void {
@@ -90,7 +93,8 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
       if (!handle) { send(res, 404, { error: 'ROUTE_NOT_FOUND' }); return }
       try { send(res, 200, await handle(req, sub)) }
       catch (error) {
-        send(res, error instanceof RequestError ? error.status : 409, { error: error instanceof Error ? error.message : String(error) })
+        send(res, error instanceof RequestError ? error.status : 409,
+          { error: error instanceof Error ? error.message : String(error), ...contractError(error) })
       }
     } }), `hanaworlds-desktop-bridge: ${path}`)
 
@@ -144,11 +148,12 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
   }
   const refreshed = async (result: unknown, view: DesktopBindingView, check: () => Promise<void>) => {
     // A committed build must remain reviewable if a subsequent read fails. Never repeat a mutation.
-    let panels = null, panelError = null
+    let panels = null, panelError = null, failure: unknown = null
     try { panels = await build.panels(view, check) }
-    catch (error) { panelError = error instanceof Error ? error.message : String(error) }
+    catch (error) { failure = error; panelError = error instanceof Error ? error.message : String(error) }
     await check()
-    return { result, panels, panelError }
+    const relayed = failure instanceof RelayedContractError ? { panelContractError: failure.publicError } : {}
+    return { result, panels, panelError, ...relayed }
   }
   route(OBJECTS_PATH, {
     'POST list': async req => {
