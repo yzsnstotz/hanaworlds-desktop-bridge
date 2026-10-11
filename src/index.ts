@@ -9,10 +9,12 @@ import type {} from '@deepseek-ai/dsh-skill'
 import { validateType } from 'hanaworlds-contracts'
 import { DesktopBuildBridge, type DomainPort, type NativeFactsPort } from './build-bridge.ts'
 import { DesktopDeploymentPolicy, type CompilerConfigPort } from './deployment-policy.ts'
+import { DesktopWorldInspectionContext } from './world-inspection-context.ts'
 import { DesktopInspectionFacts } from './inspection-facts.ts'
 import { DesktopPainterFacts } from './painter-facts.ts'
-import { DesktopImageMedia, desktopImageMediaTypes } from './image-media.ts'
+import { DesktopImageMedia, desktopImageMediaTypes, serviceIdentity } from './image-media.ts'
 import { DesktopRegionPorts, type RegionPort, type PainterRegionEntry, type BrushRegionEntry } from './region-ports.ts'
+import { DesktopWorldLifecycle } from './world-lifecycle.ts'
 import { DesktopSessionWorlds } from './session-worlds.ts'
 import { DesktopWorkshopTransport } from './workshop-transport.ts'
 import { DesktopSkillSubmission } from './skill-submission.ts'
@@ -22,6 +24,7 @@ import { installRoutes } from './routes.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    hanaworldsWorldLifecycle: import('hanaworlds-contracts').WorldLifecyclePort
     hanaworldsCanvasV5: DomainPort
     hanaworldsWorldAdapterV6: DomainPort
     /** Existing v2.0.0 in-process facts supplier; not a new C-world-facts wire. */
@@ -37,8 +40,7 @@ declare module '@deepseek-ai/cordis' {
     hanaworldsBrushRegionV1: RegionPort
     hanaworldsCatalogue: { read(worldRef: string): Promise<unknown> }
     hanaworldsSafetyProfile: { read(confirmedIntent: unknown): unknown }
-    /** Captured InspectWorld facts only; ReadInspectionContext belongs to desktop-bridge-08. */
-    hanaworldsWorldInspectionContext: { read(request: unknown): Promise<unknown> }
+    hanaworldsWorldInspectionContext: DesktopWorldInspectionContext & { read(request: unknown): Promise<unknown> }
     hanaworldsPainterLocalFacts: DesktopPainterFacts
     hanaworldsCapabilities: import('hanaworlds-contracts').PublicCapabilities
     hanaworldsMediaAuthority: { verify(input: { sessionRef: string; attachmentRef: string }): Promise<boolean> }
@@ -49,6 +51,8 @@ declare module '@deepseek-ai/cordis' {
       confirmations: DesktopWorkshopConfirmations
       images: DesktopImageMedia
       deployment: DesktopDeploymentPolicy
+      worlds: DesktopSessionWorlds
+      lifecycle: DesktopWorldLifecycle
     }
   }
 }
@@ -61,6 +65,7 @@ export function apply(ctx: Context): void {
   const sessions = ctx.sessions
   const worlds = new DesktopSessionWorlds({ session: id => sessions.get(SessionId(id)),
     workshop: () => ctx.get('hanaworldsWorkshop'), canvas: () => ctx.get('hanaworldsCanvasV5') })
+  const lifecycle = new DesktopWorldLifecycle(() => ctx.get('hanaworldsWorldLifecycle'))
   const persistence = () => ctx.get('sessionPersistence')
   const transport: DesktopWorkshopTransport = new DesktopWorkshopTransport({
     session: id => sessions.get(SessionId(id)), localContext: id => worlds.localContext(id),
@@ -85,7 +90,15 @@ export function apply(ctx: Context): void {
     adapter: () => ctx.get('hanaworldsWorldAdapterV6'), nativeFacts: () => ctx.get('hanaworldsWorldFacts'),
     canvasRegion: () => ctx.get('hanaworldsCanvasRegionV1'), inspection: () => inspection })
   ctx.effect(() => () => build.close(), 'HanaWorlds peer dispatch teardown')
-  const views = installDesktopViewBindings(ctx, { identity: `desktop-bridge:${randomUUID()}`,
+  const canvasIdentities = new WeakMap<object, string>()
+  const views = installDesktopViewBindings(ctx, {
+    get identity() {
+      const canvas = serviceIdentity(ctx.get('hanaworldsCanvasV5'))
+      if (!canvas) return ''
+      let identity = canvasIdentities.get(canvas)
+      if (!identity) { identity = `desktop-bridge:${randomUUID()}`; canvasIdentities.set(canvas, identity) }
+      return identity
+    },
     get source() { return ctx.get('hanaworldsCanvasV5')?.source === 'FIXTURE' ? 'FIXTURE' : 'ADAPTER' },
     currentContext: id => worlds.localContext(id) })
   const policy = new DesktopDeploymentPolicy({ compiler: () => ctx.get('hanaworldsCompilerConfig') })
@@ -98,7 +111,9 @@ export function apply(ctx: Context): void {
   const images = new DesktopImageMedia({ attachments: () => ctx.get('attachments'), readEvents })
   ctx.provide('hanaworldsCatalogue', { read: (worldRef: string) => build.catalogue(worldRef) })
   ctx.provide('hanaworldsSafetyProfile', { read: (intent: unknown) => policy.safety(intent) })
-  ctx.provide('hanaworldsWorldInspectionContext', { read: (raw: unknown) => inspection.read(raw) })
+  const inspectionContext = new DesktopWorldInspectionContext({ session: id => sessions.get(SessionId(id)),
+    canvas: () => ctx.get('hanaworldsCanvasV5') })
+  ctx.provide('hanaworldsWorldInspectionContext', Object.assign(inspectionContext, { read: (raw: unknown) => inspection.read(raw) }))
   ctx.provide('hanaworldsPainterLocalFacts', new DesktopPainterFacts(transport, id => worlds.localContext(id)))
   ctx.provide('hanaworldsCapabilities', validateType('PublicCapabilities', {
     providerRef: name, capabilityRevision: 'desktop-bridge/v2.0.0', worldRef: null, engineBounds: null,
@@ -136,8 +151,8 @@ export function apply(ctx: Context): void {
   const confirm = new DesktopWorkshopConfirmations({ bindings: views, sessions, workshop: () => workshopBridge,
     runSkill: (session, text, check) => submissions.run(session, text, check),
     skillPending: session => ctx.get('hanaworldsSkillBusiness')?.pending(session) ?? null })
-  ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy })
-  installRoutes(ctx, { views, confirm, transport, worlds, policy, region: async () => region.status(),
+  ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy, worlds, lifecycle })
+  installRoutes(ctx, { views, confirm, transport, worlds, lifecycle, policy, region: async () => region.status(),
     async tools() {
       const tools = ctx.get('tools'), skills = ctx.get('skills')
       if (!tools) throw new Error('TOOLS_REGISTRY_UNAVAILABLE')

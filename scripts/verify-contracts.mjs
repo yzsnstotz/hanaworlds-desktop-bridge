@@ -3,24 +3,24 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { contractHandshake, version, checkContractHandshake, validateRequest, validateBoundResponse } from 'hanaworlds-contracts'
+import { contractHandshake, version, checkContractHandshake, validateRequest, validateBoundResponse, createWorldLifecycleMock } from 'hanaworlds-contracts'
 
 const root = new URL('../', import.meta.url)
 const json = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const manifest = json('package.json'), lock = json('package-lock.json')
-const pin = 'git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.0.0'
+const pin = 'git+https://github.com/yzsnstotz/hanaworlds-contracts.git#v2.3.0'
 assert.equal(manifest.dependencies['hanaworlds-contracts'], pin)
 assert.equal(lock.packages[''].dependencies['hanaworlds-contracts'], pin)
 const remote = execFileSync('git', ['ls-remote', 'https://github.com/yzsnstotz/hanaworlds-contracts.git',
-  'refs/tags/v2.0.0', 'refs/tags/v2.0.0^{}'], { cwd: fileURLToPath(root), encoding: 'utf8' }).trim().split('\n')
-const rows = remote.map(row => row.split(/\s+/)), tag = rows.find(row => row[1] === 'refs/tags/v2.0.0^{}')
-  ?? rows.find(row => row[1] === 'refs/tags/v2.0.0')
-assert.ok(tag, 'published v2.0.0 tag must exist')
+  'refs/tags/v2.3.0', 'refs/tags/v2.3.0^{}'], { cwd: fileURLToPath(root), encoding: 'utf8' }).trim().split('\n')
+const rows = remote.map(row => row.split(/\s+/)), tag = rows.find(row => row[1] === 'refs/tags/v2.3.0^{}')
+  ?? rows.find(row => row[1] === 'refs/tags/v2.3.0')
+assert.ok(tag, 'published v2.3.0 tag must exist')
 const locked = lock.packages['node_modules/hanaworlds-contracts']
 assert.equal(locked.resolved.split('#').at(-1), tag[0])
-assert.equal(locked.version, '2.0.0')
-assert.equal(json('node_modules/hanaworlds-contracts/package.json').version, '2.0.0')
-assert.equal(version, '2.0.0')
+assert.equal(locked.version, '2.3.0')
+assert.equal(json('node_modules/hanaworlds-contracts/package.json').version, '2.3.0')
+assert.equal(version, '2.3.0')
 checkContractHandshake(contractHandshake, { wires: ['session/v5', 'canvas/v7'], factProfiles: [] })
 const { fixtureCapabilities, createWorkshopFixture } = await import('../test/workshop-fixture.ts')
 const { createViewFixture } = await import('../test/view-fixture.ts')
@@ -35,4 +35,11 @@ for (const [port, wire, operation, input] of [
   assert.ok(response.result)
 }
 assert.equal(fixtureCapabilities.providerRef, 'FIXTURE/workshop')
-console.log(`contracts v2.0.0: published tag ${tag[0]}, lock, installed SDK, session/v5 and canvas/v7 fixture roundtrips verified`)
+const lifecycleFixture = (await import('hanaworlds-contracts/fixtures/world-lifecycle', { with: { type: 'json' } })).default
+const lifecycle = createWorldLifecycleMock(lifecycleFixture)
+for (const operation of ['describe', 'list']) {
+  const request = validateRequest('world-lifecycle/v2', operation, { contractVersion: 'world-lifecycle/v2', requestId: `verify-${operation}` })
+  const response = validateBoundResponse('world-lifecycle/v2', operation, request, lifecycle('world-lifecycle/v2', operation, request))
+  assert.equal(response.error, null)
+}
+console.log(`contracts v2.3.0: published tag ${tag[0]}, lock, installed SDK, session/v5 canvas/v7 and world-lifecycle/v2 fixture roundtrips verified`)

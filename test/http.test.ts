@@ -5,7 +5,8 @@ import { SessionStore, SessionId, SessionLogOffset } from '@deepseek-ai/dsh-sess
 import { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import { SkillRegistry } from '@deepseek-ai/dsh-skill'
-import { validateType } from 'hanaworlds-contracts'
+import lifecycleFixture from 'hanaworlds-contracts/fixtures/world-lifecycle' with { type: 'json' }
+import { createWorldLifecycleMock, validateType } from 'hanaworlds-contracts'
 import * as plugin from 'hanaworlds-desktop-bridge'
 import { createViewFixture, fixtureIds } from './view-fixture.ts'
 import { createWorkshopFixture, fixtureControls } from './workshop-fixture.ts'
@@ -23,6 +24,14 @@ async function setup(t: any, registries = true) {
   } })
   ctx.provide('hanaworldsCanvasV5', canvas)
   ctx.provide('hanaworldsWorkshop', workshop)
+  const lifecycleRequests: { operation: string; request: any }[] = []
+  const lifecycleMock = createWorldLifecycleMock(lifecycleFixture)
+  const lifecycle: any = Object.fromEntries(['describe', 'list', 'create', 'describeDelete', 'delete', 'launch', 'stop', 'play']
+    .map(operation => [operation, async (request: any) => {
+      lifecycleRequests.push({ operation, request })
+      return lifecycleMock('world-lifecycle/v2', operation as never, request)
+    }]))
+  ctx.provide('hanaworldsWorldLifecycle', lifecycle)
   const registryReads: string[] = []
   const registryState = { tools: [] as unknown[], skills: { skills: [] as unknown[], complete: true } }
   if (registries) {
@@ -84,7 +93,7 @@ async function setup(t: any, registries = true) {
     return { ...page.data, lease: selected.data.lease }
   }
   return { ctx, request, bind, canvas, workshop, bridgeFiber, originalCanvasCall, base, agents, saved,
-    registryReads, registryState, modelSelections, prompts, rejectPrompt(error: Error) { promptError = error } }
+    registryReads, registryState, modelSelections, prompts, lifecycle, lifecycleRequests, rejectPrompt(error: Error) { promptError = error } }
 }
 
 test('Cordis entry registers authenticated HTTP routes and releases services and peer wrappers', async t => {
@@ -356,4 +365,119 @@ test('HTTP rejects invalid JSON, oversized bodies, unsupported routes and unknow
   const raw = await fetch(h.base + '/api-hanaworlds-view/read', { method: 'POST',
     headers: { origin: 'http://fixture.local', cookie: 'fixture-login=valid', 'content-type': 'application/json' }, body: '{' })
   assert.equal(raw.status, 400)
+})
+
+
+test('neutral lifecycle routes preserve source-owned templates and opaque creation facts', async t => {
+  const h = await setup(t)
+  const described = await h.request('/api-hanaworlds-worlds/describe')
+  assert.equal(described.status, 200)
+  assert.equal(described.data.templates[0].templateId, 'fixture-template')
+  assert.equal((await h.request('/api-hanaworlds-worlds/list')).data.worlds[0].worldId, 'fixture-world-id')
+  const created = await h.request('/api-hanaworlds-worlds/create', { templateId: 'fixture-template', displayName: 'Fixture World' })
+  assert.equal(created.status, 200)
+  const fixture = lifecycleFixture.exchanges.find(e => e.operation === 'create' && e.response.result)!
+  assert.deepEqual(created.data.creationFacts, (fixture.response.result as any).creationFacts)
+  assert.deepEqual(h.lifecycleRequests.map(r => r.operation), ['describe', 'list', 'create'])
+  assert.equal((await h.request('/api-hanaworlds-worlds/create', { templateId: 'fixture-template', displayName: 'Fixture World', luantiContent: {} })).status, 400)
+  assert.equal((await h.request('/api-hanaworlds-worlds/list', undefined, { cookie: '' })).status, 401)
+})
+
+test('connect launches by lifecycle, selects Canvas and issues a distinct lease for each page window', async t => {
+  const h = await setup(t)
+  h.canvas.act(fixtureIds[0], 'disconnect')
+  const a = (await h.request('/api-hanaworlds-view/window', {})).data
+  const b = (await h.request('/api-hanaworlds-view/window', {})).data
+  const connected = await h.request('/api-hanaworlds-worlds/connect', { ...a, sessionId: fixtureIds[0], worldId: 'fixture-world-id' })
+  assert.equal(connected.status, 200, JSON.stringify(connected.data))
+  assert.equal(connected.data.sessionId, fixtureIds[0])
+  assert.equal(connected.data.localContext.worldRef, 'fixture-world')
+  assert.equal(connected.data.noLiveBinding, false)
+  assert.equal(h.lifecycleRequests.at(-1)!.operation, 'launch')
+  assert.ok(h.canvas.requests.some(r => r.operation === 'SelectWorldConnection'))
+  assert.equal((await h.request('/api-hanaworlds-view/read', { ...b, lease: connected.data.lease })).status, 409)
+  const selected = await h.request('/api-hanaworlds-view/select', { ...b, sessionId: fixtureIds[0] })
+  assert.equal(selected.status, 200)
+  assert.notEqual(selected.data.lease, connected.data.lease)
+  assert.equal((await h.request('/api-hanaworlds-view/read', { ...a, lease: connected.data.lease })).status, 200)
+  h.canvas.act(fixtureIds[0], 'disconnect')
+  const state = await h.request('/api-hanaworlds-worlds/context', { ...a, sessionId: fixtureIds[0] })
+  assert.equal(state.status, 200)
+  assert.equal(state.data.noLiveBinding, true)
+  assert.equal(state.data.localContext, null)
+  assert.equal(state.data.worldRef, 'fixture-world')
+  assert.equal((await h.request('/api-hanaworlds-view/read', { ...a, lease: connected.data.lease })).status, 409)
+})
+
+test('connect rejects missing Core sessions and unknown window keys before launch', async t => {
+  const h = await setup(t)
+  const page = (await h.request('/api-hanaworlds-view/window', {})).data
+  assert.equal((await h.request('/api-hanaworlds-worlds/connect', { ...page, sessionId: 'absent', worldId: 'fixture-world-id' })).status, 409)
+  assert.equal((await h.request('/api-hanaworlds-worlds/connect', { windowKey: 'unknown', sessionId: fixtureIds[0], worldId: 'fixture-world-id' })).status, 404)
+  assert.equal(h.lifecycleRequests.length, 0)
+})
+
+test('closing a page while launch is in flight prevents publication and Canvas selection', async t => {
+  const h = await setup(t)
+  let release!: () => void, started!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const ready = new Promise<void>(resolve => { started = resolve })
+  const launch = h.lifecycle.launch
+  h.lifecycle.launch = async (request: unknown) => { started(); await gate; return launch(request) }
+  const page = (await h.request('/api-hanaworlds-view/window', {})).data
+  const connecting = h.request('/api-hanaworlds-worlds/connect', { ...page, sessionId: fixtureIds[0], worldId: 'fixture-world-id' })
+  // A missing route fails immediately on the red run; do not await a launch that cannot happen.
+  const available = await Promise.race([ready.then(() => true), connecting.then(() => false)])
+  assert.equal(available, true)
+  await h.request('/api-hanaworlds-view/close', page)
+  release()
+  assert.equal((await connecting).status, 409)
+  assert.equal(h.canvas.requests.filter(r => r.operation === 'SelectWorldConnection').length, 0)
+})
+
+test('lifecycle refusals, changed suppliers and forged launch correlation publish no selection', async t => {
+  const h = await setup(t)
+  const page = (await h.request('/api-hanaworlds-view/window', {})).data
+  const input = { ...page, sessionId: fixtureIds[0], worldId: 'fixture-world-id' }
+  assert.equal((await h.request('/api-hanaworlds-worlds/connect', { ...input, connectionRef: 'forged' })).status, 400)
+  const launch = h.lifecycle.launch
+  h.lifecycle.launch = async (request: any) => ({ ...await launch(request), requestId: 'another-request' })
+  assert.equal((await h.request('/api-hanaworlds-worlds/connect', input)).status, 409)
+  assert.equal(h.canvas.requests.filter(r => r.operation === 'SelectWorldConnection').length, 0)
+  h.lifecycle.launch = async () => { throw new Error('ADAPTER_UNAVAILABLE') }
+  assert.match((await h.request('/api-hanaworlds-worlds/connect', input)).data.error, /ADAPTER_UNAVAILABLE/)
+})
+
+test('stop revokes the page lease and uses only the captured lifecycle connection', async t => {
+  const h = await setup(t), window = (await h.request('/api-hanaworlds-view/window', {})).data
+  const connected = await h.request('/api-hanaworlds-worlds/connect', { ...window, sessionId: fixtureIds[0], worldId: 'fixture-world-id' })
+  const page = { ...window, lease: connected.data.lease }
+  const result = await h.request('/api-hanaworlds-worlds/stop', page)
+  assert.equal(result.status, 200)
+  assert.equal(result.data.state, 'STOPPED')
+  assert.equal(h.lifecycleRequests.at(-1)!.request.connectionRef, h.canvas.context(fixtureIds[0])!.connectionRef)
+  assert.equal((await h.request('/api-hanaworlds-view/read', page)).status, 409)
+})
+
+test('a completed stop cannot clear a successor session selected in the same page', async t => {
+  const h = await setup(t), window = (await h.request('/api-hanaworlds-view/window', {})).data
+  const connected = await h.request('/api-hanaworlds-worlds/connect', { ...window, sessionId: fixtureIds[0], worldId: 'fixture-world-id' })
+  let release!: () => void, started!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const ready = new Promise<void>(resolve => { started = resolve })
+  const stop = h.lifecycle.stop
+  h.lifecycle.stop = async (request: unknown) => { started(); await gate; return stop(request) }
+  const stopping = h.request('/api-hanaworlds-worlds/stop', { ...window, lease: connected.data.lease })
+  await ready
+  const successor = await h.request('/api-hanaworlds-view/select', { ...window, sessionId: fixtureIds[1] })
+  assert.equal(successor.status, 200)
+  release()
+  assert.equal((await stopping).status, 200)
+  assert.equal((await h.request('/api-hanaworlds-view/read', { ...window, lease: successor.data.lease })).status, 200)
+})
+
+test('replacing Canvas with identical context invalidates the old supplier lease', async t => {
+  const h = await setup(t), binding = await h.bind()
+  h.ctx.set('hanaworldsCanvasV5', { ...h.canvas, call: h.originalCanvasCall })
+  assert.equal((await h.request('/api-hanaworlds-view/read', binding)).status, 409)
 })
