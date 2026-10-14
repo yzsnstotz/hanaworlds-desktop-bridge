@@ -2,6 +2,8 @@
 import { checkContractHandshake, checkProtocolCompatibility, protocolRequirement, validateRequest, validateBoundResponse, targetWorldRef,
   ContractError, type OperationMap, type LocalWorldContext, type Error as PublicError } from 'hanaworlds-contracts'
 export interface DomainPort {
+  /** C-canvas v2: current Catalogue is obtained only by Canvas's own source role. */
+  readCatalogue?(request: import('./host-source-protocol.ts').CanvasCatalogueRequest): Promise<unknown>
   readonly contractHandshake: unknown
   /** A peer may advertise wire majors and capabilities independently of its package identity. */
   readonly protocolHandshake?: unknown

@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-skill'
 import { validateType } from 'hanaworlds-contracts'
 import { DesktopBuildBridge, type DomainPort, type NativeFactsPort } from './build-bridge.ts'
 import { DesktopDeploymentPolicy, type CompilerConfigPort, type WriteProfilePort } from './deployment-policy.ts'
+import { DesktopSourceSupply } from './host-source-supply.ts'
 import { DesktopWorldInspectionContext } from './world-inspection-context.ts'
 import { DesktopPluginRoles } from './plugin-roles.ts'
 import { DesktopPluginEvidence } from './plugin-evidence.ts'
@@ -33,7 +34,7 @@ declare module '@deepseek-ai/cordis' {
     hanaworldsWorldAdapterV6: DomainPort
     /** World-source facts, including the named C-world-facts reads when advertised by the source. */
     hanaworldsWorldFacts: NativeFactsPort & Partial<WriteProfilePort>
-    /** Bridge projection of the complete ReadWriteProfile compilationConfig. */
+    /** Canvas owns the single compiler registration; Bridge only supplies source facts. */
     hanaworldsCompilerConfig: CompilerConfigPort
     hanaworldsWorldRevisionOracle: { read(worldRef: string): Promise<unknown> }
     hanaworldsPainterV2PictureBlocks: PainterRegionEntry
@@ -94,6 +95,7 @@ export function apply(ctx: Context): void {
   const inspection = new DesktopInspectionFacts(transport, { canvas: () => ctx.get('hanaworldsCanvasV5'),
     revision: () => ctx.get('hanaworldsWorldRevisionOracle') })
   const build = new DesktopBuildBridge(transport, { canvas: () => ctx.get('hanaworldsCanvasV5'),
+    canvasRegistration: () => ctx.reflect._getImpl('hanaworldsCanvasV5'),
     adapter: () => ctx.get('hanaworldsWorldAdapterV6'), nativeFacts: () => ctx.get('hanaworldsWorldFacts'),
     canvasRegion: () => ctx.get('hanaworldsCanvasRegionV1'), adapterRegion: () => ctx.get('hanaworldsWorldAdapterRegionV1'),
     inspection: () => inspection })
@@ -109,7 +111,8 @@ export function apply(ctx: Context): void {
     },
     get source() { return ctx.get('hanaworldsCanvasV5')?.source === 'FIXTURE' ? 'FIXTURE' : 'ADAPTER' },
     currentContext: id => worlds.localContext(id) })
-  const policy = new DesktopDeploymentPolicy({ facts: () => ctx.get('hanaworldsWorldFacts') })
+  const supply = new DesktopSourceSupply(ctx)
+  const policy = new DesktopDeploymentPolicy({ facts: () => ctx.get('hanaworldsWorldFacts'), supply: () => supply.status() })
   const readEvents = async (session: import('@deepseek-ai/dsh-session').Session, from: number, count: number) => {
     const store = persistence()
     if (!store) throw new Error('SESSION_DURABILITY_UNAVAILABLE')
@@ -118,7 +121,6 @@ export function apply(ctx: Context): void {
   }
   const images = new DesktopImageMedia({ attachments: () => ctx.get('attachments'), readEvents })
   ctx.provide('hanaworldsCatalogue', { read: (worldRef: string) => build.catalogue(worldRef) })
-  ctx.provide('hanaworldsCompilerConfig', { read: (worldRef: string) => policy.compiler(worldRef) })
   ctx.provide('hanaworldsSafetyProfile', { read: (intent: unknown) => policy.safety(intent) })
   const inspectionContext = new DesktopWorldInspectionContext({ session: id => sessions.get(SessionId(id)),
     canvas: () => ctx.get('hanaworldsCanvasV5') })

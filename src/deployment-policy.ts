@@ -5,9 +5,9 @@ import { callLocal, type DomainPort } from './local-protocol.ts'
 import { serviceIdentity } from './image-media.ts'
 
 /** The bridge projects the complete source configuration; it never compiles one itself. */
-export interface CompilerConfigPort { read(worldRef: string): Promise<CompilationConfig> }
+export interface CompilerConfigPort { read(worldRef: string): Promise<{ compilationConfig: CompilationConfig; compilerRevision: string }> }
 export type WriteProfilePort = Pick<DomainPort, 'contractHandshake' | 'protocolHandshake' | 'call'>
-interface Services { facts(): Partial<WriteProfilePort> | undefined }
+interface Services { facts(): Partial<WriteProfilePort> | undefined; supply?(): unknown }
 
 /**
  * ReadWriteProfile supplies backend, compilation config, write methods and body envelope as one snapshot.
@@ -44,6 +44,7 @@ export class DesktopDeploymentPolicy {
     const writeProfile = await read(), profile = writeProfile.value
     return {
       kind: 'DEPLOYMENT_FACTS', worldRef, writeProfile,
+      ...(this.services.supply ? { sourceSupply: this.services.supply() } : {}),
       compilerConfig: { value: profile?.compilationConfig ?? null, error: writeProfile.error },
       writeMethods: { value: profile?.writeMethods ?? null, error: writeProfile.error },
       source: { writeProfile: 'hanaworldsWorldFacts C-world-facts ReadWriteProfile',

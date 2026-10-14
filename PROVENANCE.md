@@ -280,3 +280,40 @@ Existing official Cordis/DSH versions, singleton identities and dependency usage
 remain external, with no sibling compiler, handwritten SDK, vendored repository,
 new service or DSH/third-party change. Production probes use protocol-only world
 and workshop doubles, real installed Cordis/Core Session/HTTP, and no SDK runtime.
+
+# desktop-bridge-compiler-owner-01 / D-182
+
+Canvas remains the unique compiler/ConfigSupply owner. Bridge's two original
+Host readers use the actual current inspection owner Context and source getter;
+they do not import another plugin or alter DSH. Source Catalogue consumption is
+through current Canvas's documented public method.
+
+New input authority is the published document content, not a package release:
+
+| Document | Approval | SHA256 |
+| --- | --- | --- |
+| C-world-facts v2 | D-176 | c1a296c8a422e1ca8ff6a30111db465465c047cdedd03f43e9a59dbf6620e4b9 |
+| C-canvas v6 | D-178 | c6b03a48ec03b5843e10e95016005f6be4fefc1ce29fb4399792358d094083da |
+| C-session v2 section 13 | D-181 | 9f4b559c281d0839eecd5a64c07667373749569eb6e6cd55fa5ef61f191f2376 |
+
+`src/host-source-schema.ts` embeds the 58-definition transitive closure of the
+used request/response, material, scope, provider and Catalogue types, copied from
+these approved documents. Only local reference spelling is normalized from
+`#/definitions/` to `#/$defs/` for the existing Zod converter. Generated types and
+schema travel through the ordinary TypeScript/esbuild path and are hashed as
+normal source/build inputs. `host-source-protocol.ts` applies closed admission
+without projecting/replacing the successful raw value, plus documented semantic
+and byte/digest association checks. No runtime schema download, new dependency,
+engine interpretation or peer implementation is present.
+
+Zod 4.6.5 (MIT, https://github.com/colinhacks/zod) remains an existing runtime
+dependency; its public JSON Schema converter is used for document admission.
+Cordis 4.0.4 and the existing DSH services retain their versions and D-5 dependency
+usage. New production handoff verification runs in the normal packed artifact's
+default-strict installed consumer and resolves official runtime dependencies
+there. Source/data peers are explicit formal document doubles. It records full
+actual reader exchanges and bytes, original error identity/cause/UNKNOWN,
+cancel/refusal, real service registration replacement, both load orders and
+unload/reattach. It does not claim official assembled Loader/world/Agent/model/UI
+or owner acceptance. The old strict/negative artifact and package graph gates
+remain unchanged in purpose; the installed handoff probe adds coverage.

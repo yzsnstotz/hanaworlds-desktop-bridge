@@ -64,6 +64,12 @@ if (process.argv.includes('--prepack') && process.env.npm_command === 'pack') {
     const probe = spawnSync(process.execPath,['probe.mjs'],{cwd:consumer,env:cleanEnv,encoding:'utf8'})
     writeFileSync(join(attempt,'production-probe.log'),probe.stdout+probe.stderr)
     assert.equal(probe.status,0,`production capability probe failed: ${probe.stdout}${probe.stderr}`)
+    // Exercise the same formal reader contracts on the installed artifact, with no source/SDK resolution.
+    copyFileSync(join(root,'scripts/host-source-installed-test.mjs'),join(consumer,'host-source-installed-test.mjs'))
+    copyFileSync(join(root,'test/host-source-examples.json'),join(consumer,'host-source-examples.json'))
+    const handoffs = spawnSync(process.execPath,['host-source-installed-test.mjs'],{cwd:consumer,env:cleanEnv,encoding:'utf8'})
+    writeFileSync(join(attempt,'host-source-installed-test.log'),handoffs.stdout+handoffs.stderr)
+    assert.equal(handoffs.status,0,`installed Host handoff probe failed: ${handoffs.stdout}${handoffs.stderr}`)
     // Actual malformed packages/loads must fail; these inputs are retained separately from normal installation.
     const negatives=[]
     const mutate = (name,change,pattern)=>{

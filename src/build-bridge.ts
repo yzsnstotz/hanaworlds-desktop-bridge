@@ -2,16 +2,16 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
 import { validateRequest, validateBoundResponse, validateRegionCommit, validateType,
-  checkProtocolCompatibility, protocolRequirement, regionCapabilities, type MaterialSourceFactsPort } from 'hanaworlds-contracts'
+  checkProtocolCompatibility, protocolRequirement, regionCapabilities } from 'hanaworlds-contracts'
 import { callLocal, checkErrorWorld, sameLocalContext, type DomainPort } from './local-protocol.ts'
 import type { DesktopWorkshopTransport } from './workshop-transport.ts'
 import type { DesktopBindingView } from './view-binding.ts'
 import { serviceIdentity as same } from './image-media.ts'
+import { admitCatalogue, sourceRefusal, type MaterialSourceConnection, type MaterialSourcesHostFacts } from './host-source-protocol.ts'
 export type { DomainPort } from './local-protocol.ts'
 export interface NativeFactsPort {
-  readCatalogue(worldRef: string): Promise<unknown>
-  /** contracts 0.4.2 additive method; an older Adapter lacks it and the Host reports that gap. */
-  readMaterialSources?: MaterialSourceFactsPort['readMaterialSources']
+  /** C-world-facts v2 typed Host read; wire MaterialSources deliberately carries no bytes. */
+  readMaterialSources?(scope: MaterialSourceConnection): Promise<MaterialSourcesHostFacts>
   /** Adapter G3 public callback evidence bound to one paired Catalogue snapshot. */
   readWritePathEvidence?(worldRef: string): Promise<unknown>
   readScopedState(connectionRef: string, positions: readonly (readonly [number, number, number])[]): Promise<{
@@ -23,6 +23,7 @@ export interface NativeFactsPort {
 interface Services {
   inspection?(): { run(raw: unknown, call: () => Promise<unknown>, canvasInspection?: unknown): Promise<unknown> }
   canvas(): DomainPort | undefined
+  canvasRegistration?(): object | undefined
   adapter(): DomainPort | undefined
   nativeFacts(): NativeFactsPort | undefined
   /** Canvas's own `hanaworldsCanvasRegionV1`; Canvas alone reaches the Adapter region port. */
@@ -251,16 +252,25 @@ export class DesktopBuildBridge {
     await current.check()
     return validateType('StateProfile', result.stateProfile)
   }
-  /** Read the paired world's full material catalogue from the public Adapter supplier. */
+  /** Canvas owns source Catalogue reads; retain the bridge's existing catalogue projection. */
   async catalogue(worldRef: string): Promise<unknown> {
-    const current = this.transport.trustedInvocation(), port = this.services.nativeFacts()
-    if (!port) throw new Error('NATIVE_FACTS_UNAVAILABLE')
+    const current = this.transport.trustedInvocation(), port = this.services.canvas()
+    if (!port?.readCatalogue) throw sourceRefusal('CAPABILITY_UNAVAILABLE')
+    const registration = this.services.canvasRegistration?.()
+    const checkCanvas = () => {
+      if (same(this.services.canvas()) !== same(port)
+        || this.services.canvasRegistration?.() !== registration) throw sourceRefusal('CAPABILITY_UNAVAILABLE')
+    }
     if (worldRef !== current.localContext.worldRef) deny()
     await current.check()
-    const result = await port.readCatalogue(worldRef)
-    if (same(this.services.nativeFacts()) !== same(port)) deny()
+    checkCanvas()
+    const { worldRef: boundWorld, connectionRef, connectionIncarnationRef } = current.localContext
+    const scope = { worldRef: boundWorld, connectionRef, connectionIncarnationRef }
+    const result = await port.readCatalogue({ sessionRef: current.sessionRef, expectedConnection: scope })
+    checkCanvas()
     await current.check()
-    return validateType('Catalogue', result)
+    checkCanvas()
+    return admitCatalogue(result, scope).facts.catalogue
   }
   close(): void { for (const dispose of this.disposers.splice(0).reverse()) dispose() }
 }
