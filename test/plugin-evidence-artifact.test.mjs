@@ -65,7 +65,46 @@ before(() => {
   writeFileSync(probePath, installedProbe())
   succeeded(command('installed-probe-syntax', process.execPath, ['--check', probePath], work),
     'installed-probe-syntax')
-  console.log(`Q-243 / D-144 artifact evidence: ${work}`)
+  console.log(`Q-243 / D-146 artifact evidence: ${work}`)
+})
+
+// Serialized unchanged into BOTH preparation and strict business modes. The preparation
+// mode mounts real Loader modules and exercises these exact binding/state/instance checks.
+function verifiedLoadedScope(ctx, cache, definition, states) {
+  const entry = ctx.loader.resolve(definition.id)
+  if (!entry || entry.disabled || !entry.fiber) return null
+  const fiber = entry.fiber, module = cache.loadCache.get(definition.url)?.module
+  assert.ok(module); assert.equal(module.url, definition.url)
+  const callback = ctx.registry.resolve(ctx.loader.unwrapExports(module.getNamespace()))
+  assert.equal(callback, fiber.runtime.callback); assert.equal(fiber.ctx.root, ctx.root)
+  assert.equal(fiber.entry, entry)
+  assert.ok([states.ACTIVE, states.FAILED].includes(fiber.state))
+  return { ...definition, entry, fiber, callback, uid: fiber.uid, state: fiber.state }
+}
+
+test('execution-level probe preparation verifies resolved dependencies and real Loader ACTIVE/FAILED/current instances', () => {
+  const path = join(source, 'test', 'installed-probe-preparation.mjs')
+  writeFileSync(path, installedProbe())
+  succeeded(command('probe-preparation', process.execPath, [path, '--preparation-only']), 'probe-preparation')
+  const proof = json(join(source, 'probe-preparation-proof.json'))
+  assert.equal(proof.mode, 'DEVELOPMENT_PREPARATION_ONLY')
+  assert.equal(proof.businessReadPerformed, false)
+  assert.deepEqual(proof.states, { active: 2, failed: 3 })
+  assert.deepEqual(proof.checks, ['dependencies', 'active-scope', 'failed-scope', 'disabled-revoked', 'new-current-instance'])
+  assert.ok(Object.values(proof.dependencies).every(path => path.startsWith(source + '/node_modules/')))
+})
+test('execution-level preparation exposes the erased-enum binding regression before business pack gates', () => {
+  const healthy = command('probe-preparation-control', process.execPath,
+    [join(source, 'test', 'installed-probe-preparation.mjs'), '--preparation-only'])
+  succeeded(healthy, 'probe-preparation-control')
+  const path = join(source, 'test', 'installed-probe-erased-enum.mjs')
+  const code = installedProbe()
+  assert.ok(code.includes('const FiberState={ACTIVE:2,FAILED:3};'))
+  writeFileSync(path, code.replace('const FiberState={ACTIVE:2,FAILED:3};', 'const FiberState=cordis.FiberState;'))
+  const rejected = command('probe-preparation-erased-enum', process.execPath, [path, '--preparation-only'])
+  assert.equal(rejected.error, undefined)
+  assert.equal(rejected.status, 1)
+  assert.match(rejected.stderr, /TypeError: Cannot read properties of undefined .*ACTIVE/)
 })
 
 // This same observer is serialized into the strict installed probe below. Every invocation
@@ -262,13 +301,55 @@ import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 const bridgeURL=import.meta.resolve('hanaworlds-desktop-bridge');
 const require=createRequire(bridgeURL);
-assert.throws(()=>require.resolve('hanaworlds-contracts'),{code:'MODULE_NOT_FOUND'});
-const {Context,FiberState}=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')));
+const preparation=process.argv[2]==='--preparation-only';
+assert.ok(process.argv.length===2 || (process.argv.length===3 && preparation));
+if(!preparation)assert.throws(()=>require.resolve('hanaworlds-contracts'),{code:'MODULE_NOT_FOUND'});
+const cordis=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')));
+const {Context}=cordis;
+// Fixed Cordis 4.0.4 src/fiber.ts:147-154 const enum, erased at runtime. Same values as the original 22 tests.
+const FiberState={ACTIVE:2,FAILED:3};
 const {Loader}=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis-plugin-loader')));
 const {SessionStore}=await import(pathToFileURL(require.resolve('@deepseek-ai/dsh-session')));
 const {WebServer}=await import(pathToFileURL(require.resolve('@deepseek-ai/dsh-host-webserver')));
 ${createReadObserver.toString()}
 ${assertOwnedReads.toString()}
+${verifiedLoadedScope.toString()}
+if(preparation){
+  const dependencies=Object.fromEntries(['@deepseek-ai/cordis','@deepseek-ai/cordis-plugin-loader',
+    '@deepseek-ai/dsh-session','@deepseek-ai/dsh-host-webserver'].map(name=>[name,require.resolve(name)]));
+  for(const binding of [Context,Loader,SessionStore,WebServer])assert.equal(typeof binding,'function');
+  const checks=['dependencies'], ctx=new Context(), fibers=[];
+  const base=fs.mkdtempSync(join(process.cwd(),'probe-preparation-fixtures-'));
+  fs.writeFileSync(join(base,'package.json'),JSON.stringify({type:'module'}));
+  fs.writeFileSync(join(base,'active.js'),'export function apply(c){c.provide("preparationEvidence",{})}');
+  fs.writeFileSync(join(base,'failed.js'),'export function apply(){throw new Error("PREPARATION_FAILED_FIXTURE")}');
+  const active={id:'active',url:pathToFileURL(join(base,'active.js')).href,path:join(base,'package.json')};
+  const failed={id:'failed',url:pathToFileURL(join(base,'failed.js')).href,path:join(base,'package.json')};
+  try{
+    fibers.push(await ctx.plugin(Loader,{baseUrl:pathToFileURL(base+'/').href}));
+    await ctx.loader.create({id:active.id,name:active.url});await ctx.loader.await();
+    await ctx.loader.resolve('active').fiber.await();
+    const cache=ctx.loader.internal;assert.ok(cache);
+    const scope=verifiedLoadedScope(ctx,cache,active,FiberState);
+    assert.equal(scope.state,FiberState.ACTIVE);checks.push('active-scope');
+    await ctx.loader.create({id:failed.id,name:failed.url});await ctx.loader.await();
+    await assert.rejects(()=>ctx.loader.resolve('failed').fiber.await(),/PREPARATION_FAILED_FIXTURE/);
+    const failedScope=verifiedLoadedScope(ctx,cache,failed,FiberState);
+    assert.equal(failedScope.state,FiberState.FAILED);checks.push('failed-scope');
+    await scope.entry.update({disabled:true});
+    assert.equal(verifiedLoadedScope(ctx,cache,active,FiberState),null);checks.push('disabled-revoked');
+    await scope.entry.update({disabled:false});await ctx.loader.await();await scope.entry.fiber.await();
+    const current=verifiedLoadedScope(ctx,cache,active,FiberState);
+    assert.notEqual(current.fiber,scope.fiber);assert.notEqual(current.uid,scope.uid);
+    assert.equal(current.state,FiberState.ACTIVE);checks.push('new-current-instance');
+    fs.writeFileSync('probe-preparation-proof.json',JSON.stringify({mode:'DEVELOPMENT_PREPARATION_ONLY',
+      businessReadPerformed:false,dependencies,states:{active:scope.state,failed:failedScope.state},checks},null,2));
+  }finally{
+    const loader=ctx.get('loader');if(loader)for(const entry of [...loader.entries()])await entry.fiber?.dispose();
+    for(const fiber of fibers.reverse())await fiber.dispose();
+    fs.rmSync(base,{recursive:true,force:true});
+  }
+}else{
 const ctx=new Context(), fibers=[], reads=[], cases=[], httpCases=[];
 const protocolData=JSON.parse(fs.readFileSync('probe-data.json','utf8'));
 let peerCalls=0;
@@ -301,17 +382,7 @@ const moduleURL=pathToFileURL(join(own,'index.js')).href;
 // is repeated before every actual read, including an ENOENT attempt.
 const definitions=[{id:'bridge',url:bridgeURL,path:resolve(dirname(installed),'../package.json')},
   {id:'sample',url:moduleURL,path:resolve(manifestPath)}];
-const scopeFor=definition=>{
-  const entry=ctx.loader.resolve(definition.id);
-  if(!entry || entry.disabled || !entry.fiber)return null;
-  const fiber=entry.fiber, module=cache.loadCache.get(definition.url)?.module;
-  assert.ok(module);assert.equal(module.url,definition.url);
-  const callback=ctx.registry.resolve(ctx.loader.unwrapExports(module.getNamespace()));
-  assert.equal(callback,fiber.runtime.callback);assert.equal(fiber.ctx.root,ctx.root);
-  assert.equal(fiber.entry,entry);
-  assert.ok([FiberState.ACTIVE,FiberState.FAILED].includes(fiber.state));
-  return {...definition,entry,fiber,callback,uid:fiber.uid,state:fiber.state};
-};
+const scopeFor=definition=>verifiedLoadedScope(ctx,cache,definition,FiberState);
 const port=ctx.get('hanaworldsWorldInspectionContext');
 const row=(result,id='sample')=>{
   assert.equal(result.error,null);
@@ -401,5 +472,6 @@ fs.writeFileSync('plugin-evidence-proof.json',JSON.stringify({publicEntry:'STRIC
 fs.readFileSync=nativeRead;syncBuiltinESMExports();
 const loader=ctx.get('loader');if(loader)for(const entry of [...loader.entries()])await entry.fiber?.dispose();
 for(const fiber of fibers.reverse())await fiber.dispose();
+}
 }
 `; }
