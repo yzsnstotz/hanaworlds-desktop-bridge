@@ -1,6 +1,7 @@
 /** C-canvas v2 sections 4/6: official Cordis registration with DOCUMENT_FIXTURE peers.
  * These tests prove bridge composition, not real Canvas/world/Workshop authorization.
- * Material-source forwarding is deliberately not invented: see the run's contract request.
+ * Q-288/Q-289 confirm Canvas ownership. Q-293 reader consumption is tested separately
+ * in host-source-handoff.test.ts; peers here remain registration-only doubles.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -12,6 +13,7 @@ import { createViewFixture } from './view-fixture.ts'
 import { createWorkshopFixture } from './workshop-fixture.ts'
 import { createWriteProfileFixture } from './world-facts-fixture.ts'
 import { serviceIdentity } from '../lib/image-media.js'
+import handoffExamples from './host-source-examples.json' with { type: 'json' }
 
 // Full published C-canvas compilerConfig example, not a default for production.
 const documentResult = {
@@ -51,11 +53,13 @@ async function host(t: any) {
       if (state.error !== undefined) throw state.error
       return structuredClone(result)
     } }
+    const observations = { async read() { return structuredClone(handoffExamples.configNormal.normal.report) } }
     const fiber = ctx.plugin({ name: 'renamed-canvas-document-provider', apply(scope: Context) {
       scope.provide('hanaworldsCompilerConfig', port as any)
+      scope.provide('hanaworldsCanvasConfigSupply', observations)
     } }); fibers.push(fiber)
     await assert.doesNotReject(fiber.await(), 'Canvas must be able to register its sole compiler service')
-    return { fiber, port, calls, state }
+    return { fiber, port, observations, calls, state }
   }
   return { ctx, mountBridge, compiler }
 }
@@ -75,6 +79,7 @@ for (const order of ['canvas-first', 'bridge-first'] as const) {
     if (order === 'canvas-first') await h.mountBridge()
     const live = h.ctx.get('hanaworldsCompilerConfig')!
     assert.equal(serviceIdentity(live), supplied.port, 'consumer resolves the Canvas registration')
+    assert.equal(serviceIdentity(h.ctx.get('hanaworldsCanvasConfigSupply')), supplied.observations)
     assert.deepEqual(await live.read('fixture-world'), documentResult,
       'all configuration fields AND compilerRevision reach the consumer')
     assert.deepEqual(supplied.calls, ['fixture-world'])
@@ -86,6 +91,9 @@ test('compiler owner: unloading the bridge leaves Canvas registration and full c
   await bridgeFiber.dispose()
   assert.equal(h.ctx.get('hanaworldsDesktopBridge'), undefined)
   assert.equal(serviceIdentity(h.ctx.get('hanaworldsCompilerConfig')), supplied.port)
+  assert.equal(serviceIdentity(h.ctx.get('hanaworldsCanvasConfigSupply')), supplied.observations)
+  assert.deepEqual(await h.ctx.get('hanaworldsCanvasConfigSupply').read('fixture-world'),
+    handoffExamples.configNormal.normal.report, 'preserve every original current/history/provenance field')
   assert.deepEqual(await h.ctx.get('hanaworldsCompilerConfig')!.read('fixture-world'), documentResult)
 })
 
@@ -94,6 +102,7 @@ test('compiler owner: supplier loss is visible and recovery resolves the new pro
   await h.mountBridge()
   await first.fiber.dispose()
   assert.equal(h.ctx.get('hanaworldsCompilerConfig'), undefined, 'no stale or bridge-owned success after supplier loss')
+  assert.equal(h.ctx.get('hanaworldsCanvasConfigSupply'), undefined)
   const nextValue = { ...documentResult, compilerRevision: 'opaque-new-observation' }
   const second = await h.compiler(nextValue)
   assert.notEqual(second.port, first.port)

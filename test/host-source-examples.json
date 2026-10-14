@@ -1,0 +1,3674 @@
+{
+  "classification": "FORMAL_DOCUMENT_FIXTURE_NOT_REAL_HOST_AUTHORIZATION",
+  "sources": {
+    "C-world-facts": "c1a296c8a422e1ca8ff6a30111db465465c047cdedd03f43e9a59dbf6620e4b9",
+    "C-canvas": "c6b03a48ec03b5843e10e95016005f6be4fefc1ce29fb4399792358d094083da",
+    "C-session": "9f4b559c281d0839eecd5a64c07667373749569eb6e6cd55fa5ef61f191f2376"
+  },
+  "materialCases": [
+    {
+      "case": "material-normal",
+      "precondition": "Current Bridge provider; same paired tuple/provider/registry as Catalogue; actual source bytes observed twice.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.readMaterialSources",
+      "input": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "outcome": {
+        "result": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "availability": "KNOWN",
+                  "texture": {
+                    "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "sourceKind": "GAME",
+                    "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                    "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                    "mediaType": "image/png",
+                    "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "byteLength": 70
+                  }
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": "#ff0000"
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": [
+            {
+              "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+              "bytes": [
+                137,
+                80,
+                78,
+                71,
+                13,
+                10,
+                26,
+                10,
+                0,
+                0,
+                0,
+                13,
+                73,
+                72,
+                68,
+                82,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                8,
+                6,
+                0,
+                0,
+                0,
+                31,
+                21,
+                196,
+                137,
+                0,
+                0,
+                0,
+                13,
+                73,
+                68,
+                65,
+                84,
+                120,
+                1,
+                99,
+                248,
+                207,
+                192,
+                240,
+                31,
+                0,
+                5,
+                0,
+                1,
+                255,
+                123,
+                233,
+                190,
+                239,
+                0,
+                0,
+                0,
+                0,
+                73,
+                69,
+                78,
+                68,
+                174,
+                66,
+                96,
+                130
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "missing-texture",
+      "precondition": "Actual texture absent, no fallback asset.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.readMaterialSources",
+      "input": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "outcome": {
+        "result": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "availability": "UNKNOWN",
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "texture": null,
+                  "reason": "MISSING_TEXTURE"
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "2664d8db4ef6c1de5010175d5ce482ecf285231729db57ab8570311c14f2b08d"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": []
+        },
+        "error": null
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "texture-budget",
+      "precondition": "Configured maxTextureBytes=32; actual PNG exceeds it; no truncation.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.readMaterialSources",
+      "input": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "outcome": {
+        "result": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "availability": "UNKNOWN",
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "texture": null,
+                  "reason": "UNRESOLVED_SOURCE"
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "8cbb414f183c5525e14d56ffa0c74ff8209cd5a2f9c266f9a1e2bcf54db20ebe"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": []
+        },
+        "error": null
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "same-instance-recovery",
+      "precondition": "Restore exact original texture and stable facts on same provider and paired connection; explicit fresh call, no automatic retry.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.readMaterialSources",
+      "input": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "outcome": {
+        "result": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "availability": "KNOWN",
+                  "texture": {
+                    "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "sourceKind": "GAME",
+                    "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                    "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                    "mediaType": "image/png",
+                    "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "byteLength": 70
+                  }
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": "#ff0000"
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": [
+            {
+              "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+              "bytes": [
+                137,
+                80,
+                78,
+                71,
+                13,
+                10,
+                26,
+                10,
+                0,
+                0,
+                0,
+                13,
+                73,
+                72,
+                68,
+                82,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                8,
+                6,
+                0,
+                0,
+                0,
+                31,
+                21,
+                196,
+                137,
+                0,
+                0,
+                0,
+                13,
+                73,
+                68,
+                65,
+                84,
+                120,
+                1,
+                99,
+                248,
+                207,
+                192,
+                240,
+                31,
+                0,
+                5,
+                0,
+                1,
+                255,
+                123,
+                233,
+                190,
+                239,
+                0,
+                0,
+                0,
+                0,
+                73,
+                69,
+                78,
+                68,
+                174,
+                66,
+                96,
+                130
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "decode-failed",
+      "precondition": "Actual nonempty source file has PNG media type but cannot be decoded; no declared colour. Bytes stay exact, colour is null, downstream may not invent a colour/material.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.readMaterialSources",
+      "input": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "outcome": {
+        "result": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "availability": "KNOWN",
+                  "texture": {
+                    "textureName": "asset:c0163341cc94f821e531c57ae4812a33a0dd3f20e1258c61644bf96512584d81",
+                    "sourceKind": "GAME",
+                    "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                    "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                    "mediaType": "image/png",
+                    "bytesDigest": "c0163341cc94f821e531c57ae4812a33a0dd3f20e1258c61644bf96512584d81",
+                    "byteLength": 10
+                  }
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "72695063ab93bd2d0826df296382588e69f546cf2a9084b245f775d112fff27d"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": [
+            {
+              "bytesDigest": "c0163341cc94f821e531c57ae4812a33a0dd3f20e1258c61644bf96512584d81",
+              "bytes": [
+                98,
+                114,
+                111,
+                107,
+                101,
+                110,
+                32,
+                112,
+                110,
+                103
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "original-unknown-exception",
+      "precondition": "Native read rejects an original Error with original cause and this existing publicError. In-process rejection must be the exact same object.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.readMaterialSources",
+      "input": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "outcome": {
+        "promiseRejection": {
+          "name": "Error",
+          "message": "native read failed",
+          "publicError": {
+            "code": "CAPABILITY_UNAVAILABLE",
+            "phase": "readback",
+            "retryability": "NEVER",
+            "mutationState": "UNKNOWN",
+            "transactionRef": "example:prior-unknown",
+            "causeCode": "PAYLOAD_VERSION_MISMATCH",
+            "reason": "REQUIRED_FACT_UNKNOWN"
+          },
+          "cause": {
+            "name": "Error",
+            "message": "original-cause"
+          }
+        }
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "original-wire-ReadWriteProfile",
+      "precondition": "Document example values only; corresponding original authorized role and current paired world required.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.call",
+      "operation": "ReadWriteProfile",
+      "input": {
+        "contractVersion": "world-facts/v1",
+        "requestId": "read-write-profile-1",
+        "worldRef": "fixture-world"
+      },
+      "outcome": {
+        "contractVersion": "world-facts/v1",
+        "requestId": "read-write-profile-1",
+        "result": {
+          "profileVersion": "write-profile/v1",
+          "connection": {
+            "worldRef": "fixture-world",
+            "connectionRef": "local-connection",
+            "connectionIncarnationRef": "socket-open-1"
+          },
+          "catalogueDigest": "8429d43abbf2e574c8db6ce4045583924f9973ab615c86da0c876191ce745574",
+          "writeBackend": {
+            "availability": "KNOWN",
+            "basis": "LOADED_PAYLOAD_DECLARATION",
+            "writeBackend": {
+              "profileId": "fixture-world-source-cell-write/v1",
+              "revision": "fixture-world-source-rev-7"
+            }
+          },
+          "compilationConfig": {
+            "profileVersion": "compilation-config/v3",
+            "writeBackend": {
+              "profileId": "fixture-world-source-cell-write/v1",
+              "revision": "fixture-world-source-rev-7"
+            },
+            "overlapRule": "last-writer-wins",
+            "effectOrder": "numeric-x-y-z",
+            "compressionRule": "exact-final-effects-only"
+          },
+          "writeMethods": [
+            "PER_CELL",
+            "REGION"
+          ],
+          "avatarEnvelope": {
+            "availability": "KNOWN",
+            "basis": "WORLD_SOURCE_DECLARATION",
+            "size": {
+              "width": 0.6,
+              "height": 1.77,
+              "depth": 0.6
+            }
+          }
+        },
+        "error": null
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "original-wire-ReadWriteProfile-ADAPTER_UNAVAILABLE",
+      "precondition": "Original operation refusal: unavailable/current role refused, or unknown world for WORLD_NOT_BOUND. No native action performed.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.call",
+      "operation": "ReadWriteProfile",
+      "input": {
+        "contractVersion": "world-facts/v1",
+        "requestId": "read-write-profile-1",
+        "worldRef": "fixture-world"
+      },
+      "outcome": {
+        "contractVersion": "world-facts/v1",
+        "requestId": "read-write-profile-1",
+        "result": null,
+        "error": {
+          "code": "ADAPTER_UNAVAILABLE",
+          "phase": "validate",
+          "retryability": "AFTER_NEW_FACTS",
+          "mutationState": "NONE",
+          "transactionRef": null,
+          "causeCode": null,
+          "reason": "REQUIRED_FACT_UNKNOWN"
+        }
+      },
+      "zeroExtraActions": true
+    },
+    {
+      "case": "original-wire-ReadWriteProfile-CAPABILITY_UNAVAILABLE",
+      "precondition": "Original operation refusal: unavailable/current role refused, or unknown world for WORLD_NOT_BOUND. No native action performed.",
+      "role": "desktop-bridge",
+      "entry": "hanaworldsWorldFacts.call",
+      "operation": "ReadWriteProfile",
+      "input": {
+        "contractVersion": "world-facts/v1",
+        "requestId": "read-write-profile-1",
+        "worldRef": "fixture-world"
+      },
+      "outcome": {
+        "contractVersion": "world-facts/v1",
+        "requestId": "read-write-profile-1",
+        "result": null,
+        "error": {
+          "code": "CAPABILITY_UNAVAILABLE",
+          "phase": "validate",
+          "retryability": "AFTER_NEW_FACTS",
+          "mutationState": "NONE",
+          "transactionRef": null,
+          "causeCode": null,
+          "reason": "REQUIRED_FACT_UNKNOWN"
+        }
+      },
+      "zeroExtraActions": true
+    }
+  ],
+  "imageNormal": {
+    "id": "normal",
+    "request": {
+      "imageBytes": [
+        137,
+        80,
+        78,
+        71,
+        13,
+        10,
+        26,
+        10,
+        0,
+        0,
+        0,
+        13,
+        73,
+        72,
+        68,
+        82,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        8,
+        6,
+        0,
+        0,
+        0,
+        31,
+        21,
+        196,
+        137,
+        0,
+        0,
+        0,
+        13,
+        73,
+        68,
+        65,
+        84,
+        120,
+        1,
+        99,
+        248,
+        207,
+        192,
+        240,
+        31,
+        0,
+        5,
+        0,
+        1,
+        255,
+        123,
+        233,
+        190,
+        239,
+        0,
+        0,
+        0,
+        0,
+        73,
+        69,
+        78,
+        68,
+        174,
+        66,
+        96,
+        130
+      ],
+      "catalogue": {
+        "profileVersion": "catalogue/v3",
+        "engineRevisions": {
+          "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+          "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+          "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+          "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+        },
+        "emptyMaterialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+        "materials": {
+          "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+            "passable": true,
+            "liquid": false,
+            "hazardPerSecond": 0,
+            "emitsLight": false,
+            "placeable": true,
+            "orientations": [
+              0
+            ],
+            "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+            "unknownFields": [],
+            "extension": {
+              "native": {
+                "displayName": null,
+                "color": null,
+                "walkable": false,
+                "collisionBoxes": [],
+                "liquidType": "none",
+                "damagePerSecond": 0,
+                "lightSource": 0,
+                "param2Type": "none",
+                "allowedParam2": [
+                  0
+                ],
+                "hasCallbacks": false,
+                "hasPersistentState": false,
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                "unknownFields": []
+              }
+            }
+          },
+          "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+            "passable": false,
+            "liquid": false,
+            "hazardPerSecond": 0,
+            "emitsLight": false,
+            "placeable": true,
+            "orientations": [
+              0
+            ],
+            "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+            "unknownFields": [],
+            "extension": {
+              "native": {
+                "displayName": null,
+                "color": null,
+                "walkable": true,
+                "collisionBoxes": null,
+                "liquidType": "none",
+                "damagePerSecond": 0,
+                "lightSource": 0,
+                "param2Type": "none",
+                "allowedParam2": [
+                  7
+                ],
+                "hasCallbacks": false,
+                "hasPersistentState": false,
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                "unknownFields": [
+                  "collisionBoxes"
+                ]
+              }
+            }
+          },
+          "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+            "passable": true,
+            "liquid": false,
+            "hazardPerSecond": 0,
+            "emitsLight": false,
+            "placeable": null,
+            "orientations": [
+              0
+            ],
+            "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+            "unknownFields": [
+              "placeable"
+            ],
+            "extension": {
+              "native": {
+                "displayName": null,
+                "color": null,
+                "walkable": false,
+                "collisionBoxes": null,
+                "liquidType": "none",
+                "damagePerSecond": 0,
+                "lightSource": 0,
+                "param2Type": "none",
+                "allowedParam2": [
+                  0
+                ],
+                "hasCallbacks": null,
+                "hasPersistentState": null,
+                "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                "unknownFields": [
+                  "collisionBoxes",
+                  "hasCallbacks",
+                  "hasPersistentState"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "currentConnection": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation"
+      },
+      "materialSources": {
+        "snapshot": {
+          "profileVersion": "material-sources/v2",
+          "connection": {
+            "worldRef": "example:world",
+            "connectionRef": "example:connection",
+            "connectionIncarnationRef": "example:incarnation"
+          },
+          "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+          "engineRevisions": {
+            "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+            "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+            "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+            "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+          },
+          "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+          "materials": [
+            {
+              "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+              "orientation": 0,
+              "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+              "availability": "UNKNOWN",
+              "texture": null,
+              "reason": "UNSUPPORTED_APPEARANCE"
+            },
+            {
+              "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+              "orientation": 0,
+              "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+              "availability": "KNOWN",
+              "texture": {
+                "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                "sourceKind": "GAME",
+                "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                "mediaType": "image/png",
+                "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                "byteLength": 70
+              }
+            },
+            {
+              "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+              "orientation": 0,
+              "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+              "availability": "UNKNOWN",
+              "texture": null,
+              "reason": "UNSUPPORTED_APPEARANCE"
+            }
+          ],
+          "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+        },
+        "textures": [
+          {
+            "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "bytes": [
+              137,
+              80,
+              78,
+              71,
+              13,
+              10,
+              26,
+              10,
+              0,
+              0,
+              0,
+              13,
+              73,
+              72,
+              68,
+              82,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              8,
+              6,
+              0,
+              0,
+              0,
+              31,
+              21,
+              196,
+              137,
+              0,
+              0,
+              0,
+              13,
+              73,
+              68,
+              65,
+              84,
+              120,
+              1,
+              99,
+              248,
+              207,
+              192,
+              240,
+              31,
+              0,
+              5,
+              0,
+              1,
+              255,
+              123,
+              233,
+              190,
+              239,
+              0,
+              0,
+              0,
+              0,
+              73,
+              69,
+              78,
+              68,
+              174,
+              66,
+              96,
+              130
+            ]
+          }
+        ]
+      }
+    },
+    "requestAdmitted": true,
+    "supplyRequest": {
+      "attachmentRef": "workshop-current-image"
+    },
+    "hostContext": {
+      "coreIdentity": {
+        "id": "workshop-supply-session",
+        "version": 4,
+        "createdAt": 100,
+        "cwd": "/document-fixture"
+      },
+      "sessionRef": "workshop-supply-session",
+      "turnRef": "current-image-turn",
+      "turnRevision": "current-image-turn-revision",
+      "localContext": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation",
+        "selectionRevision": "current-selection"
+      },
+      "sourceMessage": {
+        "id": "current-human-image-message",
+        "role": "user",
+        "source": {
+          "kind": "user"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "用这张当前附件选材"
+          },
+          {
+            "type": "image",
+            "attachment": {
+              "attachmentId": "workshop-current-image",
+              "mediaType": "image/png",
+              "bytes": 70,
+              "width": 1,
+              "height": 1
+            }
+          }
+        ]
+      },
+      "media": {
+        "attachmentRef": "workshop-current-image",
+        "storedBytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+        "projectionVariantId": null,
+        "projectionBytesDigest": null,
+        "mediaType": "image/png",
+        "bytes": 70,
+        "width": 1,
+        "height": 1
+      }
+    },
+    "runtimeIdentityObservation": "actual Agent/Session/AbortSignal and registered contexts must be supplied by execution; this JSON grants nothing",
+    "calls": [
+      {
+        "caller": "actual Workshop Host",
+        "receiver": "current official attachments",
+        "operation": "readImage",
+        "input": {
+          "attachmentId": "workshop-current-image",
+          "mediaType": "image/png",
+          "bytes": 70,
+          "width": 1,
+          "height": 1
+        },
+        "output": {
+          "ref": {
+            "attachmentId": "workshop-current-image",
+            "mediaType": "image/png",
+            "bytes": 70,
+            "width": 1,
+            "height": 1
+          },
+          "data": [
+            137,
+            80,
+            78,
+            71,
+            13,
+            10,
+            26,
+            10,
+            0,
+            0,
+            0,
+            13,
+            73,
+            72,
+            68,
+            82,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            8,
+            6,
+            0,
+            0,
+            0,
+            31,
+            21,
+            196,
+            137,
+            0,
+            0,
+            0,
+            13,
+            73,
+            68,
+            65,
+            84,
+            120,
+            1,
+            99,
+            248,
+            207,
+            192,
+            240,
+            31,
+            0,
+            5,
+            0,
+            1,
+            255,
+            123,
+            233,
+            190,
+            239,
+            0,
+            0,
+            0,
+            0,
+            73,
+            69,
+            78,
+            68,
+            174,
+            66,
+            96,
+            130
+          ]
+        },
+        "runtimeBytes": "Uint8Array"
+      },
+      {
+        "caller": "actual Workshop",
+        "receiver": "current hanaworldsCanvasV5",
+        "operation": "readCatalogue",
+        "input": {
+          "sessionRef": "workshop-supply-session",
+          "expectedConnection": {
+            "worldRef": "example:world",
+            "connectionRef": "example:connection",
+            "connectionIncarnationRef": "example:incarnation"
+          }
+        },
+        "output": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "catalogue-facts/v1",
+            "connection": {
+              "worldRef": "example:world",
+              "connectionRef": "example:connection",
+              "connectionIncarnationRef": "example:incarnation"
+            },
+            "catalogue": {
+              "profileVersion": "catalogue/v3",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "emptyMaterialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+              "materials": {
+                "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                  "passable": true,
+                  "liquid": false,
+                  "hazardPerSecond": 0,
+                  "emitsLight": false,
+                  "placeable": true,
+                  "orientations": [
+                    0
+                  ],
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "unknownFields": [],
+                  "extension": {
+                    "native": {
+                      "displayName": null,
+                      "color": null,
+                      "walkable": false,
+                      "collisionBoxes": [],
+                      "liquidType": "none",
+                      "damagePerSecond": 0,
+                      "lightSource": 0,
+                      "param2Type": "none",
+                      "allowedParam2": [
+                        0
+                      ],
+                      "hasCallbacks": false,
+                      "hasPersistentState": false,
+                      "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                      "unknownFields": []
+                    }
+                  }
+                },
+                "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                  "passable": false,
+                  "liquid": false,
+                  "hazardPerSecond": 0,
+                  "emitsLight": false,
+                  "placeable": true,
+                  "orientations": [
+                    0
+                  ],
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "unknownFields": [],
+                  "extension": {
+                    "native": {
+                      "displayName": null,
+                      "color": null,
+                      "walkable": true,
+                      "collisionBoxes": null,
+                      "liquidType": "none",
+                      "damagePerSecond": 0,
+                      "lightSource": 0,
+                      "param2Type": "none",
+                      "allowedParam2": [
+                        7
+                      ],
+                      "hasCallbacks": false,
+                      "hasPersistentState": false,
+                      "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                      "unknownFields": [
+                        "collisionBoxes"
+                      ]
+                    }
+                  }
+                },
+                "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                  "passable": true,
+                  "liquid": false,
+                  "hazardPerSecond": 0,
+                  "emitsLight": false,
+                  "placeable": null,
+                  "orientations": [
+                    0
+                  ],
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "unknownFields": [
+                    "placeable"
+                  ],
+                  "extension": {
+                    "native": {
+                      "displayName": null,
+                      "color": null,
+                      "walkable": false,
+                      "collisionBoxes": null,
+                      "liquidType": "none",
+                      "damagePerSecond": 0,
+                      "lightSource": 0,
+                      "param2Type": "none",
+                      "allowedParam2": [
+                        0
+                      ],
+                      "hasCallbacks": null,
+                      "hasPersistentState": null,
+                      "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                      "unknownFields": [
+                        "collisionBoxes",
+                        "hasCallbacks",
+                        "hasPersistentState"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": "#ff0000"
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            },
+            "orientationIndex": [
+              {
+                "orientation": 0,
+                "quarterTurnsAboutUp": null,
+                "upsideDown": null
+              }
+            ]
+          }
+        }
+      },
+      {
+        "caller": "captured actual Bridge Context",
+        "receiver": "current hanaworldsWorldFacts",
+        "operation": "readMaterialSources",
+        "input": {
+          "worldRef": "example:world",
+          "connectionRef": "example:connection",
+          "connectionIncarnationRef": "example:incarnation"
+        },
+        "output": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "availability": "KNOWN",
+                  "texture": {
+                    "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "sourceKind": "GAME",
+                    "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                    "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                    "mediaType": "image/png",
+                    "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "byteLength": 70
+                  }
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": "#ff0000"
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": [
+            {
+              "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+              "bytes": [
+                137,
+                80,
+                78,
+                71,
+                13,
+                10,
+                26,
+                10,
+                0,
+                0,
+                0,
+                13,
+                73,
+                72,
+                68,
+                82,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                8,
+                6,
+                0,
+                0,
+                0,
+                31,
+                21,
+                196,
+                137,
+                0,
+                0,
+                0,
+                13,
+                73,
+                68,
+                65,
+                84,
+                120,
+                1,
+                99,
+                248,
+                207,
+                192,
+                240,
+                31,
+                0,
+                5,
+                0,
+                1,
+                255,
+                123,
+                233,
+                190,
+                239,
+                0,
+                0,
+                0,
+                0,
+                73,
+                69,
+                78,
+                68,
+                174,
+                66,
+                96,
+                130
+              ]
+            }
+          ]
+        },
+        "runtimeBytes": "Uint8Array textures"
+      },
+      {
+        "caller": "actual Workshop",
+        "receiver": "same captured current Bridge Context",
+        "operation": "readMaterialSources [second explicit observation]",
+        "input": {
+          "worldRef": "example:world",
+          "connectionRef": "example:connection",
+          "connectionIncarnationRef": "example:incarnation"
+        },
+        "output": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "material-source-facts/v1",
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "availability": "KNOWN",
+                  "texture": {
+                    "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "sourceKind": "GAME",
+                    "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                    "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                    "mediaType": "image/png",
+                    "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "byteLength": 70
+                  }
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+            },
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": "#ff0000"
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            }
+          },
+          "textures": [
+            {
+              "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+              "bytes": [
+                137,
+                80,
+                78,
+                71,
+                13,
+                10,
+                26,
+                10,
+                0,
+                0,
+                0,
+                13,
+                73,
+                72,
+                68,
+                82,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                8,
+                6,
+                0,
+                0,
+                0,
+                31,
+                21,
+                196,
+                137,
+                0,
+                0,
+                0,
+                13,
+                73,
+                68,
+                65,
+                84,
+                120,
+                1,
+                99,
+                248,
+                207,
+                192,
+                240,
+                31,
+                0,
+                5,
+                0,
+                1,
+                255,
+                123,
+                233,
+                190,
+                239,
+                0,
+                0,
+                0,
+                0,
+                73,
+                69,
+                78,
+                68,
+                174,
+                66,
+                96,
+                130
+              ]
+            }
+          ]
+        },
+        "runtimeBytes": "Uint8Array textures"
+      },
+      {
+        "caller": "actual Workshop",
+        "receiver": "same current hanaworldsCanvasV5",
+        "operation": "readCatalogue [release observation]",
+        "input": {
+          "sessionRef": "workshop-supply-session",
+          "expectedConnection": {
+            "worldRef": "example:world",
+            "connectionRef": "example:connection",
+            "connectionIncarnationRef": "example:incarnation"
+          },
+          "expectedProvider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "expectedCatalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58"
+        },
+        "output": {
+          "provider": {
+            "providerRef": "example:provider",
+            "providerRevision": "example:provider-generation"
+          },
+          "facts": {
+            "profileVersion": "catalogue-facts/v1",
+            "connection": {
+              "worldRef": "example:world",
+              "connectionRef": "example:connection",
+              "connectionIncarnationRef": "example:incarnation"
+            },
+            "catalogue": {
+              "profileVersion": "catalogue/v3",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "emptyMaterialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+              "materials": {
+                "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                  "passable": true,
+                  "liquid": false,
+                  "hazardPerSecond": 0,
+                  "emitsLight": false,
+                  "placeable": true,
+                  "orientations": [
+                    0
+                  ],
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "unknownFields": [],
+                  "extension": {
+                    "native": {
+                      "displayName": null,
+                      "color": null,
+                      "walkable": false,
+                      "collisionBoxes": [],
+                      "liquidType": "none",
+                      "damagePerSecond": 0,
+                      "lightSource": 0,
+                      "param2Type": "none",
+                      "allowedParam2": [
+                        0
+                      ],
+                      "hasCallbacks": false,
+                      "hasPersistentState": false,
+                      "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                      "unknownFields": []
+                    }
+                  }
+                },
+                "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                  "passable": false,
+                  "liquid": false,
+                  "hazardPerSecond": 0,
+                  "emitsLight": false,
+                  "placeable": true,
+                  "orientations": [
+                    0
+                  ],
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "unknownFields": [],
+                  "extension": {
+                    "native": {
+                      "displayName": null,
+                      "color": null,
+                      "walkable": true,
+                      "collisionBoxes": null,
+                      "liquidType": "none",
+                      "damagePerSecond": 0,
+                      "lightSource": 0,
+                      "param2Type": "none",
+                      "allowedParam2": [
+                        7
+                      ],
+                      "hasCallbacks": false,
+                      "hasPersistentState": false,
+                      "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                      "unknownFields": [
+                        "collisionBoxes"
+                      ]
+                    }
+                  }
+                },
+                "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                  "passable": true,
+                  "liquid": false,
+                  "hazardPerSecond": 0,
+                  "emitsLight": false,
+                  "placeable": null,
+                  "orientations": [
+                    0
+                  ],
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "unknownFields": [
+                    "placeable"
+                  ],
+                  "extension": {
+                    "native": {
+                      "displayName": null,
+                      "color": null,
+                      "walkable": false,
+                      "collisionBoxes": null,
+                      "liquidType": "none",
+                      "damagePerSecond": 0,
+                      "lightSource": 0,
+                      "param2Type": "none",
+                      "allowedParam2": [
+                        0
+                      ],
+                      "hasCallbacks": null,
+                      "hasPersistentState": null,
+                      "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                      "unknownFields": [
+                        "collisionBoxes",
+                        "hasCallbacks",
+                        "hasPersistentState"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+            "presentation": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "displayName": null,
+                "color": null
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "displayName": null,
+                "color": "#ff0000"
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "displayName": null,
+                "color": null
+              }
+            },
+            "orientationIndex": [
+              {
+                "orientation": 0,
+                "quarterTurnsAboutUp": null,
+                "upsideDown": null
+              }
+            ]
+          }
+        }
+      },
+      {
+        "caller": "original Painter handler",
+        "receiver": "original typed image_material",
+        "operation": "image_material",
+        "input": {
+          "imageBytes": [
+            137,
+            80,
+            78,
+            71,
+            13,
+            10,
+            26,
+            10,
+            0,
+            0,
+            0,
+            13,
+            73,
+            72,
+            68,
+            82,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            8,
+            6,
+            0,
+            0,
+            0,
+            31,
+            21,
+            196,
+            137,
+            0,
+            0,
+            0,
+            13,
+            73,
+            68,
+            65,
+            84,
+            120,
+            1,
+            99,
+            248,
+            207,
+            192,
+            240,
+            31,
+            0,
+            5,
+            0,
+            1,
+            255,
+            123,
+            233,
+            190,
+            239,
+            0,
+            0,
+            0,
+            0,
+            73,
+            69,
+            78,
+            68,
+            174,
+            66,
+            96,
+            130
+          ],
+          "catalogue": {
+            "profileVersion": "catalogue/v3",
+            "engineRevisions": {
+              "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+              "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+              "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+              "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+            },
+            "emptyMaterialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+            "materials": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "passable": true,
+                "liquid": false,
+                "hazardPerSecond": 0,
+                "emitsLight": false,
+                "placeable": true,
+                "orientations": [
+                  0
+                ],
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                "unknownFields": [],
+                "extension": {
+                  "native": {
+                    "displayName": null,
+                    "color": null,
+                    "walkable": false,
+                    "collisionBoxes": [],
+                    "liquidType": "none",
+                    "damagePerSecond": 0,
+                    "lightSource": 0,
+                    "param2Type": "none",
+                    "allowedParam2": [
+                      0
+                    ],
+                    "hasCallbacks": false,
+                    "hasPersistentState": false,
+                    "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                    "unknownFields": []
+                  }
+                }
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "passable": false,
+                "liquid": false,
+                "hazardPerSecond": 0,
+                "emitsLight": false,
+                "placeable": true,
+                "orientations": [
+                  0
+                ],
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                "unknownFields": [],
+                "extension": {
+                  "native": {
+                    "displayName": null,
+                    "color": null,
+                    "walkable": true,
+                    "collisionBoxes": null,
+                    "liquidType": "none",
+                    "damagePerSecond": 0,
+                    "lightSource": 0,
+                    "param2Type": "none",
+                    "allowedParam2": [
+                      7
+                    ],
+                    "hasCallbacks": false,
+                    "hasPersistentState": false,
+                    "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                    "unknownFields": [
+                      "collisionBoxes"
+                    ]
+                  }
+                }
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "passable": true,
+                "liquid": false,
+                "hazardPerSecond": 0,
+                "emitsLight": false,
+                "placeable": null,
+                "orientations": [
+                  0
+                ],
+                "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                "unknownFields": [
+                  "placeable"
+                ],
+                "extension": {
+                  "native": {
+                    "displayName": null,
+                    "color": null,
+                    "walkable": false,
+                    "collisionBoxes": null,
+                    "liquidType": "none",
+                    "damagePerSecond": 0,
+                    "lightSource": 0,
+                    "param2Type": "none",
+                    "allowedParam2": [
+                      0
+                    ],
+                    "hasCallbacks": null,
+                    "hasPersistentState": null,
+                    "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                    "unknownFields": [
+                      "collisionBoxes",
+                      "hasCallbacks",
+                      "hasPersistentState"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "currentConnection": {
+            "worldRef": "example:world",
+            "connectionRef": "example:connection",
+            "connectionIncarnationRef": "example:incarnation"
+          },
+          "materialSources": {
+            "snapshot": {
+              "profileVersion": "material-sources/v2",
+              "connection": {
+                "worldRef": "example:world",
+                "connectionRef": "example:connection",
+                "connectionIncarnationRef": "example:incarnation"
+              },
+              "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+              "engineRevisions": {
+                "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+                "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+                "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+                "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+              },
+              "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+              "materials": [
+                {
+                  "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                },
+                {
+                  "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                  "orientation": 0,
+                  "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                  "availability": "KNOWN",
+                  "texture": {
+                    "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "sourceKind": "GAME",
+                    "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                    "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                    "mediaType": "image/png",
+                    "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                    "byteLength": 70
+                  }
+                },
+                {
+                  "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                  "orientation": 0,
+                  "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                  "availability": "UNKNOWN",
+                  "texture": null,
+                  "reason": "UNSUPPORTED_APPEARANCE"
+                }
+              ],
+              "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+            },
+            "textures": [
+              {
+                "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                "bytes": [
+                  137,
+                  80,
+                  78,
+                  71,
+                  13,
+                  10,
+                  26,
+                  10,
+                  0,
+                  0,
+                  0,
+                  13,
+                  73,
+                  72,
+                  68,
+                  82,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  1,
+                  8,
+                  6,
+                  0,
+                  0,
+                  0,
+                  31,
+                  21,
+                  196,
+                  137,
+                  0,
+                  0,
+                  0,
+                  13,
+                  73,
+                  68,
+                  65,
+                  84,
+                  120,
+                  1,
+                  99,
+                  248,
+                  207,
+                  192,
+                  240,
+                  31,
+                  0,
+                  5,
+                  0,
+                  1,
+                  255,
+                  123,
+                  233,
+                  190,
+                  239,
+                  0,
+                  0,
+                  0,
+                  0,
+                  73,
+                  69,
+                  78,
+                  68,
+                  174,
+                  66,
+                  96,
+                  130
+                ]
+              }
+            ]
+          }
+        },
+        "output": {
+          "image": {
+            "sha256": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "format": "png",
+            "width": 1,
+            "height": 1,
+            "pixels": 1
+          },
+          "dominant": {
+            "rgb": [
+              255,
+              0,
+              0
+            ],
+            "lab": {
+              "L": 53.23288178584245,
+              "a": 80.10930952982204,
+              "b": 67.22006831026425
+            },
+            "alphaWeight": 1,
+            "bin": 3840
+          },
+          "material": {
+            "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+            "orientation": 0
+          },
+          "match": {
+            "rgb": [
+              255,
+              0,
+              0
+            ],
+            "lab": {
+              "L": 53.23288178584245,
+              "a": 80.10930952982204,
+              "b": 67.22006831026425
+            },
+            "distance": 0,
+            "algorithm": "CIEDE2000",
+            "texture": {
+              "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+              "sourceKind": "GAME",
+              "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+              "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+              "mediaType": "image/png",
+              "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+              "byteLength": 70
+            }
+          },
+          "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a",
+          "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+          "connection": {
+            "worldRef": "example:world",
+            "connectionRef": "example:connection",
+            "connectionIncarnationRef": "example:incarnation"
+          },
+          "engineRevisions": {
+            "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+            "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+            "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+            "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+          },
+          "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+          "sources": {
+            "unknownVariants": 2,
+            "staticIneligibleVariants": 0,
+            "measuredLegalVariants": 1,
+            "measuredTextures": 1
+          },
+          "modelCalls": 0,
+          "worldWrites": 0
+        }
+      }
+    ],
+    "projection": {
+      "sessionRef": "workshop-supply-session",
+      "turnRef": "current-image-turn",
+      "turnRevision": "current-image-turn-revision",
+      "sourceMessageId": "current-human-image-message",
+      "messageDigest": "fecddaf4015dd2b1fe713d4eeaddc8cdd45c930409d1044301c4cebd9129f17e",
+      "localContext": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation",
+        "selectionRevision": "current-selection"
+      },
+      "attachment": {
+        "attachmentId": "workshop-current-image",
+        "mediaType": "image/png",
+        "bytes": 70,
+        "width": 1,
+        "height": 1
+      },
+      "media": {
+        "attachmentRef": "workshop-current-image",
+        "storedBytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+        "projectionVariantId": null,
+        "projectionBytesDigest": null,
+        "mediaType": "image/png",
+        "bytes": 70,
+        "width": 1,
+        "height": 1
+      },
+      "imageBytes": [
+        137,
+        80,
+        78,
+        71,
+        13,
+        10,
+        26,
+        10,
+        0,
+        0,
+        0,
+        13,
+        73,
+        72,
+        68,
+        82,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        8,
+        6,
+        0,
+        0,
+        0,
+        31,
+        21,
+        196,
+        137,
+        0,
+        0,
+        0,
+        13,
+        73,
+        68,
+        65,
+        84,
+        120,
+        1,
+        99,
+        248,
+        207,
+        192,
+        240,
+        31,
+        0,
+        5,
+        0,
+        1,
+        255,
+        123,
+        233,
+        190,
+        239,
+        0,
+        0,
+        0,
+        0,
+        73,
+        69,
+        78,
+        68,
+        174,
+        66,
+        96,
+        130
+      ],
+      "catalogue": {
+        "provider": {
+          "providerRef": "example:provider",
+          "providerRevision": "example:provider-generation"
+        },
+        "facts": {
+          "profileVersion": "catalogue-facts/v1",
+          "connection": {
+            "worldRef": "example:world",
+            "connectionRef": "example:connection",
+            "connectionIncarnationRef": "example:incarnation"
+          },
+          "catalogue": {
+            "profileVersion": "catalogue/v3",
+            "engineRevisions": {
+              "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+              "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+              "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+              "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+            },
+            "emptyMaterialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+            "materials": {
+              "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+                "passable": true,
+                "liquid": false,
+                "hazardPerSecond": 0,
+                "emitsLight": false,
+                "placeable": true,
+                "orientations": [
+                  0
+                ],
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                "unknownFields": [],
+                "extension": {
+                  "native": {
+                    "displayName": null,
+                    "color": null,
+                    "walkable": false,
+                    "collisionBoxes": [],
+                    "liquidType": "none",
+                    "damagePerSecond": 0,
+                    "lightSource": 0,
+                    "param2Type": "none",
+                    "allowedParam2": [
+                      0
+                    ],
+                    "hasCallbacks": false,
+                    "hasPersistentState": false,
+                    "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                    "unknownFields": []
+                  }
+                }
+              },
+              "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+                "passable": false,
+                "liquid": false,
+                "hazardPerSecond": 0,
+                "emitsLight": false,
+                "placeable": true,
+                "orientations": [
+                  0
+                ],
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                "unknownFields": [],
+                "extension": {
+                  "native": {
+                    "displayName": null,
+                    "color": null,
+                    "walkable": true,
+                    "collisionBoxes": null,
+                    "liquidType": "none",
+                    "damagePerSecond": 0,
+                    "lightSource": 0,
+                    "param2Type": "none",
+                    "allowedParam2": [
+                      7
+                    ],
+                    "hasCallbacks": false,
+                    "hasPersistentState": false,
+                    "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                    "unknownFields": [
+                      "collisionBoxes"
+                    ]
+                  }
+                }
+              },
+              "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+                "passable": true,
+                "liquid": false,
+                "hazardPerSecond": 0,
+                "emitsLight": false,
+                "placeable": null,
+                "orientations": [
+                  0
+                ],
+                "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                "unknownFields": [
+                  "placeable"
+                ],
+                "extension": {
+                  "native": {
+                    "displayName": null,
+                    "color": null,
+                    "walkable": false,
+                    "collisionBoxes": null,
+                    "liquidType": "none",
+                    "damagePerSecond": 0,
+                    "lightSource": 0,
+                    "param2Type": "none",
+                    "allowedParam2": [
+                      0
+                    ],
+                    "hasCallbacks": null,
+                    "hasPersistentState": null,
+                    "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                    "unknownFields": [
+                      "collisionBoxes",
+                      "hasCallbacks",
+                      "hasPersistentState"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+          "presentation": {
+            "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+              "displayName": null,
+              "color": null
+            },
+            "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+              "displayName": null,
+              "color": "#ff0000"
+            },
+            "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+              "displayName": null,
+              "color": null
+            }
+          },
+          "orientationIndex": [
+            {
+              "orientation": 0,
+              "quarterTurnsAboutUp": null,
+              "upsideDown": null
+            }
+          ]
+        }
+      },
+      "materialSources": {
+        "provider": {
+          "providerRef": "example:provider",
+          "providerRevision": "example:provider-generation"
+        },
+        "facts": {
+          "profileVersion": "material-source-facts/v1",
+          "snapshot": {
+            "profileVersion": "material-sources/v2",
+            "connection": {
+              "worldRef": "example:world",
+              "connectionRef": "example:connection",
+              "connectionIncarnationRef": "example:incarnation"
+            },
+            "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+            "engineRevisions": {
+              "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+              "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+              "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+              "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+            },
+            "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+            "materials": [
+              {
+                "materialRef": "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b",
+                "orientation": 0,
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000006b8fb88d",
+                "availability": "UNKNOWN",
+                "texture": null,
+                "reason": "UNSUPPORTED_APPEARANCE"
+              },
+              {
+                "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+                "orientation": 0,
+                "definitionRevision": "000000000000000000000000000000000000000000000000000000001001cbfe",
+                "availability": "KNOWN",
+                "texture": {
+                  "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                  "sourceKind": "GAME",
+                  "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+                  "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+                  "mediaType": "image/png",
+                  "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+                  "byteLength": 70
+                }
+              },
+              {
+                "materialRef": "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5",
+                "orientation": 0,
+                "definitionRevision": "00000000000000000000000000000000000000000000000000000000ac010df1",
+                "availability": "UNKNOWN",
+                "texture": null,
+                "reason": "UNSUPPORTED_APPEARANCE"
+              }
+            ],
+            "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a"
+          },
+          "presentation": {
+            "material:09fa4913a997a355a146e76e0bad9ce7066f861cb4ada08656ea4d462310db1b": {
+              "displayName": null,
+              "color": null
+            },
+            "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b": {
+              "displayName": null,
+              "color": "#ff0000"
+            },
+            "material:7cc1ece60c8b4ee017b5e6583977ada7e3f169184a00b72c8296929260667dd5": {
+              "displayName": null,
+              "color": null
+            }
+          }
+        },
+        "textures": [
+          {
+            "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "bytes": [
+              137,
+              80,
+              78,
+              71,
+              13,
+              10,
+              26,
+              10,
+              0,
+              0,
+              0,
+              13,
+              73,
+              72,
+              68,
+              82,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              8,
+              6,
+              0,
+              0,
+              0,
+              31,
+              21,
+              196,
+              137,
+              0,
+              0,
+              0,
+              13,
+              73,
+              68,
+              65,
+              84,
+              120,
+              1,
+              99,
+              248,
+              207,
+              192,
+              240,
+              31,
+              0,
+              5,
+              0,
+              1,
+              255,
+              123,
+              233,
+              190,
+              239,
+              0,
+              0,
+              0,
+              0,
+              73,
+              69,
+              78,
+              68,
+              174,
+              66,
+              96,
+              130
+            ]
+          }
+        ]
+      }
+    },
+    "response": {
+      "result": {
+        "image": {
+          "sha256": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+          "format": "png",
+          "width": 1,
+          "height": 1,
+          "pixels": 1
+        },
+        "dominant": {
+          "rgb": [
+            255,
+            0,
+            0
+          ],
+          "lab": {
+            "L": 53.23288178584245,
+            "a": 80.10930952982204,
+            "b": 67.22006831026425
+          },
+          "alphaWeight": 1,
+          "bin": 3840
+        },
+        "material": {
+          "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+          "orientation": 0
+        },
+        "match": {
+          "rgb": [
+            255,
+            0,
+            0
+          ],
+          "lab": {
+            "L": 53.23288178584245,
+            "a": 80.10930952982204,
+            "b": 67.22006831026425
+          },
+          "distance": 0,
+          "algorithm": "CIEDE2000",
+          "texture": {
+            "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "sourceKind": "GAME",
+            "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+            "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+            "mediaType": "image/png",
+            "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "byteLength": 70
+          }
+        },
+        "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a",
+        "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+        "connection": {
+          "worldRef": "example:world",
+          "connectionRef": "example:connection",
+          "connectionIncarnationRef": "example:incarnation"
+        },
+        "engineRevisions": {
+          "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+          "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+          "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+          "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+        },
+        "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+        "sources": {
+          "unknownVariants": 2,
+          "staticIneligibleVariants": 0,
+          "measuredLegalVariants": 1,
+          "measuredTextures": 1
+        },
+        "modelCalls": 0,
+        "worldWrites": 0
+      },
+      "error": null
+    },
+    "responseIsObservationNotABI": true,
+    "before": {
+      "coreIdentity": {
+        "id": "workshop-supply-session",
+        "version": 4,
+        "createdAt": 100,
+        "cwd": "/document-fixture"
+      },
+      "sessionRef": "workshop-supply-session",
+      "turnRef": "current-image-turn",
+      "turnRevision": "current-image-turn-revision",
+      "localContext": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation",
+        "selectionRevision": "current-selection"
+      },
+      "sourceMessage": {
+        "id": "current-human-image-message",
+        "role": "user",
+        "source": {
+          "kind": "user"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "用这张当前附件选材"
+          },
+          {
+            "type": "image",
+            "attachment": {
+              "attachmentId": "workshop-current-image",
+              "mediaType": "image/png",
+              "bytes": 70,
+              "width": 1,
+              "height": 1
+            }
+          }
+        ]
+      },
+      "media": {
+        "attachmentRef": "workshop-current-image",
+        "storedBytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+        "projectionVariantId": null,
+        "projectionBytesDigest": null,
+        "mediaType": "image/png",
+        "bytes": 70,
+        "width": 1,
+        "height": 1
+      }
+    },
+    "after": {
+      "coreIdentity": {
+        "id": "workshop-supply-session",
+        "version": 4,
+        "createdAt": 100,
+        "cwd": "/document-fixture"
+      },
+      "sessionRef": "workshop-supply-session",
+      "turnRef": "current-image-turn",
+      "turnRevision": "current-image-turn-revision",
+      "localContext": {
+        "worldRef": "example:world",
+        "connectionRef": "example:connection",
+        "connectionIncarnationRef": "example:incarnation",
+        "selectionRevision": "current-selection"
+      },
+      "sourceMessage": {
+        "id": "current-human-image-message",
+        "role": "user",
+        "source": {
+          "kind": "user"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "用这张当前附件选材"
+          },
+          {
+            "type": "image",
+            "attachment": {
+              "attachmentId": "workshop-current-image",
+              "mediaType": "image/png",
+              "bytes": 70,
+              "width": 1,
+              "height": 1
+            }
+          }
+        ]
+      },
+      "media": {
+        "attachmentRef": "workshop-current-image",
+        "storedBytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+        "projectionVariantId": null,
+        "projectionBytesDigest": null,
+        "mediaType": "image/png",
+        "bytes": 70,
+        "width": 1,
+        "height": 1
+      }
+    },
+    "effects": {
+      "worldWrites": 0,
+      "sessionCreates": 0,
+      "coreWrites": 0,
+      "domainWrites": 0,
+      "journalWrites": 0,
+      "compileCalls": 0
+    },
+    "native": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"catalogueDigest\":\"6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58\",\"connection\":{\"connectionIncarnationRef\":\"example:incarnation\",\"connectionRef\":\"example:connection\",\"worldRef\":\"example:world\"},\"dominant\":{\"alphaWeight\":1,\"bin\":3840,\"lab\":{\"L\":53.23288178584245,\"a\":80.10930952982204,\"b\":67.22006831026425},\"rgb\":[255,0,0]},\"engineRevisions\":{\"registry\":\"000000000000000000000000000000000000000000000000000000006d908b85\",\"source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9\":\"00000000000000000000000000000000000000000000000000000000d89eee74\",\"source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62\":\"0000000000000000000000000000000000000000000000000000000042ce7693\",\"source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3\":\"0000000000000000000000000000000000000000000000000000000050954c2b\"},\"image\":{\"format\":\"png\",\"height\":1,\"pixels\":1,\"sha256\":\"7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39\",\"width\":1},\"match\":{\"algorithm\":\"CIEDE2000\",\"distance\":0,\"lab\":{\"L\":53.23288178584245,\"a\":80.10930952982204,\"b\":67.22006831026425},\"rgb\":[255,0,0],\"texture\":{\"byteLength\":70,\"bytesDigest\":\"7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39\",\"interpretation\":\"SIMPLE_UNIFORM_NODE_TILES\",\"mediaType\":\"image/png\",\"sourceKind\":\"GAME\",\"sourceRef\":\"source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c\",\"textureName\":\"asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39\"}},\"material\":{\"materialRef\":\"material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b\",\"orientation\":0},\"modelCalls\":0,\"sourceBasis\":\"WORLD_SOURCE_ASSET_ONLY\",\"sourceRevision\":\"fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a\",\"sources\":{\"measuredLegalVariants\":1,\"measuredTextures\":1,\"staticIneligibleVariants\":0,\"unknownVariants\":2},\"worldWrites\":0}"
+        }
+      ],
+      "isError": false,
+      "value": {
+        "image": {
+          "sha256": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+          "format": "png",
+          "width": 1,
+          "height": 1,
+          "pixels": 1
+        },
+        "dominant": {
+          "rgb": [
+            255,
+            0,
+            0
+          ],
+          "lab": {
+            "L": 53.23288178584245,
+            "a": 80.10930952982204,
+            "b": 67.22006831026425
+          },
+          "alphaWeight": 1,
+          "bin": 3840
+        },
+        "material": {
+          "materialRef": "material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b",
+          "orientation": 0
+        },
+        "match": {
+          "rgb": [
+            255,
+            0,
+            0
+          ],
+          "lab": {
+            "L": 53.23288178584245,
+            "a": 80.10930952982204,
+            "b": 67.22006831026425
+          },
+          "distance": 0,
+          "algorithm": "CIEDE2000",
+          "texture": {
+            "textureName": "asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "sourceKind": "GAME",
+            "sourceRef": "source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c",
+            "interpretation": "SIMPLE_UNIFORM_NODE_TILES",
+            "mediaType": "image/png",
+            "bytesDigest": "7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39",
+            "byteLength": 70
+          }
+        },
+        "sourceRevision": "fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a",
+        "catalogueDigest": "6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58",
+        "connection": {
+          "worldRef": "example:world",
+          "connectionRef": "example:connection",
+          "connectionIncarnationRef": "example:incarnation"
+        },
+        "engineRevisions": {
+          "registry": "000000000000000000000000000000000000000000000000000000006d908b85",
+          "source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9": "00000000000000000000000000000000000000000000000000000000d89eee74",
+          "source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62": "0000000000000000000000000000000000000000000000000000000042ce7693",
+          "source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3": "0000000000000000000000000000000000000000000000000000000050954c2b"
+        },
+        "sourceBasis": "WORLD_SOURCE_ASSET_ONLY",
+        "sources": {
+          "unknownVariants": 2,
+          "staticIneligibleVariants": 0,
+          "measuredLegalVariants": 1,
+          "measuredTextures": 1
+        },
+        "modelCalls": 0,
+        "worldWrites": 0
+      }
+    },
+    "modelMessage": {
+      "role": "tool",
+      "toolCallId": "normal",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"catalogueDigest\":\"6d71921c8161da683cc21b6f2b36db21a2f439b42c2d3b920f79cdae80947d58\",\"connection\":{\"connectionIncarnationRef\":\"example:incarnation\",\"connectionRef\":\"example:connection\",\"worldRef\":\"example:world\"},\"dominant\":{\"alphaWeight\":1,\"bin\":3840,\"lab\":{\"L\":53.23288178584245,\"a\":80.10930952982204,\"b\":67.22006831026425},\"rgb\":[255,0,0]},\"engineRevisions\":{\"registry\":\"000000000000000000000000000000000000000000000000000000006d908b85\",\"source:0aa8e88dad12ce957804ed38c94ccf0c2076e4d2b573fa05d8c0357cc2429fa9\":\"00000000000000000000000000000000000000000000000000000000d89eee74\",\"source:46469076af0a466d7be7f74faa488c073fffedd7e40ca4cf6941b51280b7be62\":\"0000000000000000000000000000000000000000000000000000000042ce7693\",\"source:ed1291e09d78185980dff5469be1ddace67524584553106024cb7d354bae34f3\":\"0000000000000000000000000000000000000000000000000000000050954c2b\"},\"image\":{\"format\":\"png\",\"height\":1,\"pixels\":1,\"sha256\":\"7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39\",\"width\":1},\"match\":{\"algorithm\":\"CIEDE2000\",\"distance\":0,\"lab\":{\"L\":53.23288178584245,\"a\":80.10930952982204,\"b\":67.22006831026425},\"rgb\":[255,0,0],\"texture\":{\"byteLength\":70,\"bytesDigest\":\"7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39\",\"interpretation\":\"SIMPLE_UNIFORM_NODE_TILES\",\"mediaType\":\"image/png\",\"sourceKind\":\"GAME\",\"sourceRef\":\"source:c0330c3893f84b343e18c5151e42cc5b9ea737ff89b8790789cfcfb17a7e135c\",\"textureName\":\"asset:7d91c846b70d9450a30d1ea73dc15d2e7888dfa3b2a84b297bb5272ae23daf39\"}},\"material\":{\"materialRef\":\"material:3d6acc0486dceb18466f6bbe3dc708e7eb788e944612b7abd2c628020167177b\",\"orientation\":0},\"modelCalls\":0,\"sourceBasis\":\"WORLD_SOURCE_ASSET_ONLY\",\"sourceRevision\":\"fb093d083173b4ef57edcf4ffded93ae5cb293c7f0976c94757b7bdef0c1dd1a\",\"sources\":{\"measuredLegalVariants\":1,\"measuredTextures\":1,\"staticIneligibleVariants\":0,\"unknownVariants\":2},\"worldWrites\":0}"
+        }
+      ],
+      "isError": false
+    },
+    "releaseToPainter": true,
+    "refusalStage": null,
+    "exceptionPolicy": "ORIGINAL_OBJECT_AT_PLUGIN_BOUNDARY; NATIVE_ERROR_MESSAGE_AND_OPTIONAL_INFO_ONLY"
+  },
+  "configNormal": {
+    "classification": "DOCUMENT_FIXTURE; existing offline DTO example computation, not implemented Host handoff or native source evidence",
+    "scope": {
+      "worldRef": "supply-fixture-world",
+      "connectionRef": "supply-fixture-connection",
+      "connectionIncarnationRef": "supply-fixture-incarnation-1"
+    },
+    "request": {
+      "contractVersion": "world-facts/v1",
+      "requestId": "q288-profile-example",
+      "worldRef": "supply-fixture-world"
+    },
+    "response": {
+      "contractVersion": "world-facts/v1",
+      "requestId": "q288-profile-example",
+      "result": {
+        "profileVersion": "write-profile/v1",
+        "connection": {
+          "worldRef": "supply-fixture-world",
+          "connectionRef": "supply-fixture-connection",
+          "connectionIncarnationRef": "supply-fixture-incarnation-1"
+        },
+        "catalogueDigest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60",
+        "writeBackend": {
+          "availability": "KNOWN",
+          "basis": "LOADED_PAYLOAD_DECLARATION",
+          "writeBackend": {
+            "profileId": "fixture-world-source-cell-write/v1",
+            "revision": "fixture-world-source-rev-7"
+          }
+        },
+        "compilationConfig": {
+          "profileVersion": "compilation-config/v3",
+          "writeBackend": {
+            "profileId": "fixture-world-source-cell-write/v1",
+            "revision": "fixture-world-source-rev-7"
+          },
+          "overlapRule": "last-writer-wins",
+          "effectOrder": "numeric-x-y-z",
+          "compressionRule": "exact-final-effects-only"
+        },
+        "writeMethods": [
+          "PER_CELL",
+          "REGION"
+        ],
+        "avatarEnvelope": {
+          "availability": "KNOWN",
+          "basis": "WORLD_SOURCE_DECLARATION",
+          "size": {
+            "width": 0.6,
+            "height": 1.77,
+            "depth": 0.6
+          }
+        }
+      },
+      "error": null
+    },
+    "normal": {
+      "compiler": {
+        "compilationConfig": {
+          "profileVersion": "compilation-config/v3",
+          "writeBackend": {
+            "profileId": "fixture-world-source-cell-write/v1",
+            "revision": "fixture-world-source-rev-7"
+          },
+          "overlapRule": "last-writer-wins",
+          "effectOrder": "numeric-x-y-z",
+          "compressionRule": "exact-final-effects-only"
+        },
+        "compilerRevision": "compiler-config-057ab5a94bbe4631e5e0795dd7658a15"
+      },
+      "report": {
+        "profileVersion": "canvas-stage1-config-supply/v2",
+        "authority": "hanaworlds-canvas",
+        "worldRef": "supply-fixture-world",
+        "current": {
+          "contracts": "hanaworlds-contracts@2.12.0",
+          "domain": {
+            "worldRef": "supply-fixture-world",
+            "connectionRef": "supply-fixture-connection",
+            "connectionIncarnationRef": "supply-fixture-incarnation-1",
+            "payloadVersion": "local-world/v1",
+            "capabilityRevision": "supply-fixture-cap-1"
+          },
+          "sessionRefs": [
+            "supply-fixture-session"
+          ],
+          "profiles": {
+            "compilationConfig": {
+              "type": "CompilationConfig",
+              "status": "SUPPLIED",
+              "value": {
+                "profileVersion": "compilation-config/v3",
+                "writeBackend": {
+                  "profileId": "fixture-world-source-cell-write/v1",
+                  "revision": "fixture-world-source-rev-7"
+                },
+                "overlapRule": "last-writer-wins",
+                "effectOrder": "numeric-x-y-z",
+                "compressionRule": "exact-final-effects-only"
+              },
+              "digest": "9b1af44acb8255f08a15c856ea0a16c728a967aa7aec4c0e26e810b1e958ba04",
+              "revision": "compiler-config-057ab5a94bbe4631e5e0795dd7658a15",
+              "fields": {
+                "profileVersion": {
+                  "status": "SUPPLIED",
+                  "value": "compilation-config/v3",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.profileVersion",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "writeBackend": {
+                  "status": "SUPPLIED",
+                  "value": {
+                    "profileId": "fixture-world-source-cell-write/v1",
+                    "revision": "fixture-world-source-rev-7"
+                  },
+                  "provenance": {
+                    "kind": "WORLD_SOURCE_FACT",
+                    "ref": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend",
+                    "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d",
+                    "basis": "LOADED_PAYLOAD_DECLARATION"
+                  }
+                },
+                "overlapRule": {
+                  "status": "SUPPLIED",
+                  "value": "last-writer-wins",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.overlapRule",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "effectOrder": {
+                  "status": "SUPPLIED",
+                  "value": "numeric-x-y-z",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.effectOrder",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "compressionRule": {
+                  "status": "SUPPLIED",
+                  "value": "exact-final-effects-only",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.compressionRule",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                }
+              },
+              "missing": []
+            }
+          },
+          "sources": {
+            "writeProfile": {
+              "status": "READ",
+              "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d"
+            },
+            "catalogue": {
+              "status": "READ",
+              "digest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60"
+            }
+          },
+          "observationDigest": "515da86d3531e19b7a96a17e00636110522dc83a61a0402a629e2b441fb48535",
+          "observedSequence": 1,
+          "observedAt": "2026-10-14T18:34:31.871Z"
+        },
+        "history": []
+      }
+    },
+    "unavailable": {
+      "report": {
+        "profileVersion": "canvas-stage1-config-supply/v2",
+        "authority": "hanaworlds-canvas",
+        "worldRef": "supply-fixture-world",
+        "current": {
+          "contracts": "hanaworlds-contracts@2.12.0",
+          "domain": {
+            "worldRef": "supply-fixture-world",
+            "connectionRef": "supply-fixture-connection",
+            "connectionIncarnationRef": "supply-fixture-incarnation-1",
+            "payloadVersion": "local-world/v1",
+            "capabilityRevision": "supply-fixture-cap-1"
+          },
+          "sessionRefs": [
+            "supply-fixture-session"
+          ],
+          "profiles": {
+            "compilationConfig": {
+              "type": "CompilationConfig",
+              "status": "SOURCE_MISSING",
+              "value": null,
+              "digest": null,
+              "revision": null,
+              "fields": {
+                "profileVersion": {
+                  "status": "SUPPLIED",
+                  "value": "compilation-config/v3",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.profileVersion",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "writeBackend": {
+                  "status": "MISSING",
+                  "value": null,
+                  "provenance": null,
+                  "sourceKind": "WORLD_SOURCE_FACT",
+                  "reason": "REQUIRED_FACT_UNKNOWN",
+                  "cause": "NOT_DECLARED_BY_PAYLOAD",
+                  "need": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend declared by the bound world source"
+                },
+                "overlapRule": {
+                  "status": "SUPPLIED",
+                  "value": "last-writer-wins",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.overlapRule",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "effectOrder": {
+                  "status": "SUPPLIED",
+                  "value": "numeric-x-y-z",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.effectOrder",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "compressionRule": {
+                  "status": "SUPPLIED",
+                  "value": "exact-final-effects-only",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.compressionRule",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                }
+              },
+              "missing": [
+                {
+                  "profile": "CompilationConfig",
+                  "field": "writeBackend",
+                  "sourceKind": "WORLD_SOURCE_FACT",
+                  "reason": "REQUIRED_FACT_UNKNOWN",
+                  "need": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend declared by the bound world source",
+                  "cause": "NOT_DECLARED_BY_PAYLOAD"
+                }
+              ]
+            }
+          },
+          "sources": {
+            "writeProfile": {
+              "status": "READ",
+              "sourceRevision": "write-profile-45b84768ac52d42ecaba207e25d03123"
+            },
+            "catalogue": {
+              "status": "READ",
+              "digest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60"
+            }
+          },
+          "observationDigest": "f215b1412120c8ad32c50d13cd4367c5b760fcde3cc8d7870e244c107227f17b",
+          "observedSequence": 2,
+          "observedAt": "2026-10-14T18:34:31.895Z"
+        },
+        "history": [
+          {
+            "contracts": "hanaworlds-contracts@2.12.0",
+            "domain": {
+              "worldRef": "supply-fixture-world",
+              "connectionRef": "supply-fixture-connection",
+              "connectionIncarnationRef": "supply-fixture-incarnation-1",
+              "payloadVersion": "local-world/v1",
+              "capabilityRevision": "supply-fixture-cap-1"
+            },
+            "sessionRefs": [
+              "supply-fixture-session"
+            ],
+            "profiles": {
+              "compilationConfig": {
+                "type": "CompilationConfig",
+                "status": "SUPPLIED",
+                "value": {
+                  "profileVersion": "compilation-config/v3",
+                  "writeBackend": {
+                    "profileId": "fixture-world-source-cell-write/v1",
+                    "revision": "fixture-world-source-rev-7"
+                  },
+                  "overlapRule": "last-writer-wins",
+                  "effectOrder": "numeric-x-y-z",
+                  "compressionRule": "exact-final-effects-only"
+                },
+                "digest": "9b1af44acb8255f08a15c856ea0a16c728a967aa7aec4c0e26e810b1e958ba04",
+                "revision": "compiler-config-057ab5a94bbe4631e5e0795dd7658a15",
+                "fields": {
+                  "profileVersion": {
+                    "status": "SUPPLIED",
+                    "value": "compilation-config/v3",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.profileVersion",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "writeBackend": {
+                    "status": "SUPPLIED",
+                    "value": {
+                      "profileId": "fixture-world-source-cell-write/v1",
+                      "revision": "fixture-world-source-rev-7"
+                    },
+                    "provenance": {
+                      "kind": "WORLD_SOURCE_FACT",
+                      "ref": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend",
+                      "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d",
+                      "basis": "LOADED_PAYLOAD_DECLARATION"
+                    }
+                  },
+                  "overlapRule": {
+                    "status": "SUPPLIED",
+                    "value": "last-writer-wins",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.overlapRule",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "effectOrder": {
+                    "status": "SUPPLIED",
+                    "value": "numeric-x-y-z",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.effectOrder",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "compressionRule": {
+                    "status": "SUPPLIED",
+                    "value": "exact-final-effects-only",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.compressionRule",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  }
+                },
+                "missing": []
+              }
+            },
+            "sources": {
+              "writeProfile": {
+                "status": "READ",
+                "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d"
+              },
+              "catalogue": {
+                "status": "READ",
+                "digest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60"
+              }
+            },
+            "observationDigest": "515da86d3531e19b7a96a17e00636110522dc83a61a0402a629e2b441fb48535",
+            "observedSequence": 1,
+            "observedAt": "2026-10-14T18:34:31.871Z",
+            "supersededAt": "2026-10-14T18:34:31.895Z",
+            "supersededBy": "f215b1412120c8ad32c50d13cd4367c5b760fcde3cc8d7870e244c107227f17b",
+            "invalidationReasons": [
+              "SOURCE_REVISION_CHANGED",
+              "COMPILATIONCONFIG_STATUS_CHANGED"
+            ]
+          }
+        ]
+      },
+      "error": {
+        "publicError": {
+          "code": "CAPABILITY_UNAVAILABLE",
+          "phase": "validate",
+          "retryability": "AFTER_NEW_FACTS",
+          "mutationState": "NONE",
+          "transactionRef": null,
+          "causeCode": null,
+          "reason": "REQUIRED_FACT_UNKNOWN"
+        },
+        "missingSources": [
+          {
+            "profile": "CompilationConfig",
+            "field": "writeBackend",
+            "sourceKind": "WORLD_SOURCE_FACT",
+            "reason": "REQUIRED_FACT_UNKNOWN",
+            "need": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend declared by the bound world source",
+            "cause": "NOT_DECLARED_BY_PAYLOAD"
+          }
+        ],
+        "observationDigest": "f215b1412120c8ad32c50d13cd4367c5b760fcde3cc8d7870e244c107227f17b"
+      }
+    },
+    "recovered": {
+      "compiler": {
+        "compilationConfig": {
+          "profileVersion": "compilation-config/v3",
+          "writeBackend": {
+            "profileId": "fixture-world-source-cell-write/v1",
+            "revision": "fixture-world-source-rev-7"
+          },
+          "overlapRule": "last-writer-wins",
+          "effectOrder": "numeric-x-y-z",
+          "compressionRule": "exact-final-effects-only"
+        },
+        "compilerRevision": "compiler-config-057ab5a94bbe4631e5e0795dd7658a15"
+      },
+      "report": {
+        "profileVersion": "canvas-stage1-config-supply/v2",
+        "authority": "hanaworlds-canvas",
+        "worldRef": "supply-fixture-world",
+        "current": {
+          "contracts": "hanaworlds-contracts@2.12.0",
+          "domain": {
+            "worldRef": "supply-fixture-world",
+            "connectionRef": "supply-fixture-connection",
+            "connectionIncarnationRef": "supply-fixture-incarnation-1",
+            "payloadVersion": "local-world/v1",
+            "capabilityRevision": "supply-fixture-cap-1"
+          },
+          "sessionRefs": [
+            "supply-fixture-session"
+          ],
+          "profiles": {
+            "compilationConfig": {
+              "type": "CompilationConfig",
+              "status": "SUPPLIED",
+              "value": {
+                "profileVersion": "compilation-config/v3",
+                "writeBackend": {
+                  "profileId": "fixture-world-source-cell-write/v1",
+                  "revision": "fixture-world-source-rev-7"
+                },
+                "overlapRule": "last-writer-wins",
+                "effectOrder": "numeric-x-y-z",
+                "compressionRule": "exact-final-effects-only"
+              },
+              "digest": "9b1af44acb8255f08a15c856ea0a16c728a967aa7aec4c0e26e810b1e958ba04",
+              "revision": "compiler-config-057ab5a94bbe4631e5e0795dd7658a15",
+              "fields": {
+                "profileVersion": {
+                  "status": "SUPPLIED",
+                  "value": "compilation-config/v3",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.profileVersion",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "writeBackend": {
+                  "status": "SUPPLIED",
+                  "value": {
+                    "profileId": "fixture-world-source-cell-write/v1",
+                    "revision": "fixture-world-source-rev-7"
+                  },
+                  "provenance": {
+                    "kind": "WORLD_SOURCE_FACT",
+                    "ref": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend",
+                    "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d",
+                    "basis": "LOADED_PAYLOAD_DECLARATION"
+                  }
+                },
+                "overlapRule": {
+                  "status": "SUPPLIED",
+                  "value": "last-writer-wins",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.overlapRule",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "effectOrder": {
+                  "status": "SUPPLIED",
+                  "value": "numeric-x-y-z",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.effectOrder",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                },
+                "compressionRule": {
+                  "status": "SUPPLIED",
+                  "value": "exact-final-effects-only",
+                  "provenance": {
+                    "kind": "CONTRACT_SCHEMA",
+                    "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.compressionRule",
+                    "sourceRevision": "hanaworlds-contracts@2.12.0"
+                  }
+                }
+              },
+              "missing": []
+            }
+          },
+          "sources": {
+            "writeProfile": {
+              "status": "READ",
+              "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d"
+            },
+            "catalogue": {
+              "status": "READ",
+              "digest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60"
+            }
+          },
+          "observationDigest": "515da86d3531e19b7a96a17e00636110522dc83a61a0402a629e2b441fb48535",
+          "observedSequence": 3,
+          "observedAt": "2026-10-14T18:34:31.910Z"
+        },
+        "history": [
+          {
+            "contracts": "hanaworlds-contracts@2.12.0",
+            "domain": {
+              "worldRef": "supply-fixture-world",
+              "connectionRef": "supply-fixture-connection",
+              "connectionIncarnationRef": "supply-fixture-incarnation-1",
+              "payloadVersion": "local-world/v1",
+              "capabilityRevision": "supply-fixture-cap-1"
+            },
+            "sessionRefs": [
+              "supply-fixture-session"
+            ],
+            "profiles": {
+              "compilationConfig": {
+                "type": "CompilationConfig",
+                "status": "SUPPLIED",
+                "value": {
+                  "profileVersion": "compilation-config/v3",
+                  "writeBackend": {
+                    "profileId": "fixture-world-source-cell-write/v1",
+                    "revision": "fixture-world-source-rev-7"
+                  },
+                  "overlapRule": "last-writer-wins",
+                  "effectOrder": "numeric-x-y-z",
+                  "compressionRule": "exact-final-effects-only"
+                },
+                "digest": "9b1af44acb8255f08a15c856ea0a16c728a967aa7aec4c0e26e810b1e958ba04",
+                "revision": "compiler-config-057ab5a94bbe4631e5e0795dd7658a15",
+                "fields": {
+                  "profileVersion": {
+                    "status": "SUPPLIED",
+                    "value": "compilation-config/v3",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.profileVersion",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "writeBackend": {
+                    "status": "SUPPLIED",
+                    "value": {
+                      "profileId": "fixture-world-source-cell-write/v1",
+                      "revision": "fixture-world-source-rev-7"
+                    },
+                    "provenance": {
+                      "kind": "WORLD_SOURCE_FACT",
+                      "ref": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend",
+                      "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d",
+                      "basis": "LOADED_PAYLOAD_DECLARATION"
+                    }
+                  },
+                  "overlapRule": {
+                    "status": "SUPPLIED",
+                    "value": "last-writer-wins",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.overlapRule",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "effectOrder": {
+                    "status": "SUPPLIED",
+                    "value": "numeric-x-y-z",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.effectOrder",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "compressionRule": {
+                    "status": "SUPPLIED",
+                    "value": "exact-final-effects-only",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.compressionRule",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  }
+                },
+                "missing": []
+              }
+            },
+            "sources": {
+              "writeProfile": {
+                "status": "READ",
+                "sourceRevision": "write-profile-cfc8db3b9f9e8261a0d3be076add8a3d"
+              },
+              "catalogue": {
+                "status": "READ",
+                "digest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60"
+              }
+            },
+            "observationDigest": "515da86d3531e19b7a96a17e00636110522dc83a61a0402a629e2b441fb48535",
+            "observedSequence": 1,
+            "observedAt": "2026-10-14T18:34:31.871Z",
+            "supersededAt": "2026-10-14T18:34:31.895Z",
+            "supersededBy": "f215b1412120c8ad32c50d13cd4367c5b760fcde3cc8d7870e244c107227f17b",
+            "invalidationReasons": [
+              "SOURCE_REVISION_CHANGED",
+              "COMPILATIONCONFIG_STATUS_CHANGED"
+            ]
+          },
+          {
+            "contracts": "hanaworlds-contracts@2.12.0",
+            "domain": {
+              "worldRef": "supply-fixture-world",
+              "connectionRef": "supply-fixture-connection",
+              "connectionIncarnationRef": "supply-fixture-incarnation-1",
+              "payloadVersion": "local-world/v1",
+              "capabilityRevision": "supply-fixture-cap-1"
+            },
+            "sessionRefs": [
+              "supply-fixture-session"
+            ],
+            "profiles": {
+              "compilationConfig": {
+                "type": "CompilationConfig",
+                "status": "SOURCE_MISSING",
+                "value": null,
+                "digest": null,
+                "revision": null,
+                "fields": {
+                  "profileVersion": {
+                    "status": "SUPPLIED",
+                    "value": "compilation-config/v3",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.profileVersion",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "writeBackend": {
+                    "status": "MISSING",
+                    "value": null,
+                    "provenance": null,
+                    "sourceKind": "WORLD_SOURCE_FACT",
+                    "reason": "REQUIRED_FACT_UNKNOWN",
+                    "cause": "NOT_DECLARED_BY_PAYLOAD",
+                    "need": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend declared by the bound world source"
+                  },
+                  "overlapRule": {
+                    "status": "SUPPLIED",
+                    "value": "last-writer-wins",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.overlapRule",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "effectOrder": {
+                    "status": "SUPPLIED",
+                    "value": "numeric-x-y-z",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.effectOrder",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  },
+                  "compressionRule": {
+                    "status": "SUPPLIED",
+                    "value": "exact-final-effects-only",
+                    "provenance": {
+                      "kind": "CONTRACT_SCHEMA",
+                      "ref": "hanaworlds-contracts@2.12.0#CompilationConfig.compressionRule",
+                      "sourceRevision": "hanaworlds-contracts@2.12.0"
+                    }
+                  }
+                },
+                "missing": [
+                  {
+                    "profile": "CompilationConfig",
+                    "field": "writeBackend",
+                    "sourceKind": "WORLD_SOURCE_FACT",
+                    "reason": "REQUIRED_FACT_UNKNOWN",
+                    "need": "C-world-facts ReadWriteProfile.compilationConfig.writeBackend declared by the bound world source",
+                    "cause": "NOT_DECLARED_BY_PAYLOAD"
+                  }
+                ]
+              }
+            },
+            "sources": {
+              "writeProfile": {
+                "status": "READ",
+                "sourceRevision": "write-profile-45b84768ac52d42ecaba207e25d03123"
+              },
+              "catalogue": {
+                "status": "READ",
+                "digest": "81e623b3f4f23cdfce3e2b3e9fcefbb7cd0df85ab9eaa9b9393cc8168075dd60"
+              }
+            },
+            "observationDigest": "f215b1412120c8ad32c50d13cd4367c5b760fcde3cc8d7870e244c107227f17b",
+            "observedSequence": 2,
+            "observedAt": "2026-10-14T18:34:31.895Z",
+            "supersededAt": "2026-10-14T18:34:31.910Z",
+            "supersededBy": "515da86d3531e19b7a96a17e00636110522dc83a61a0402a629e2b441fb48535",
+            "invalidationReasons": [
+              "SOURCE_REVISION_CHANGED",
+              "COMPILATIONCONFIG_STATUS_CHANGED"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
