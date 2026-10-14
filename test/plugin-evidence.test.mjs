@@ -241,14 +241,19 @@ test('same entry replacement reports the new package/version with a new instance
   assert.ok(!row.contributions.services.includes('evidenceAlpha'))
 })
 
-test('same module and same entry remount still revokes the previous fiber identity', async t => {
+test('disabled revokes old evidence; official re-enable of the same module/entry publishes a new instance', async t => {
   const h = await setup(t)
   const mounted = await h.mount('alpha')
   const old = rowFor(await h.direct(), 'alpha')
   await mounted.fiber.dispose()
-  await mounted.entry.init()
+  assert.equal(mounted.entry.disabled, true)
+  const disabled = await h.direct()
+  assert.ok(!rows(disabled).some(row => row.entryId === 'alpha' || row.instanceRef === old.instanceRef))
+  await mounted.entry.update({ disabled: false })
   await h.ctx.loader.await()
   await mounted.entry.fiber.await()
+  assert.equal(mounted.entry.disabled, false)
+  assert.notEqual(mounted.entry.fiber, mounted.fiber)
   const row = rowFor(await h.direct(), 'alpha')
   active(row, mounted)
   assert.notEqual(row.instanceRef, old.instanceRef)
