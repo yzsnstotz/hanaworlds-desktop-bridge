@@ -6,8 +6,8 @@ import { before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawnSync, execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { audit } from '../scripts/artifact-audit.mjs'
 
@@ -61,7 +61,92 @@ before(() => {
     && /from ["']node:fs["']/.test(readFileSync(join(baseline, 'lib', name), 'utf8')))
   assert.equal(files.length, 1, 'locate the actual bundled manifest reader, independent of chunk filename')
   readerFile = join('lib', files[0])
-  console.log(`Q-243 artifact evidence: ${work}`)
+  const probePath = join(work, 'installed-probe-syntax.mjs')
+  writeFileSync(probePath, installedProbe())
+  succeeded(command('installed-probe-syntax', process.execPath, ['--check', probePath], work),
+    'installed-probe-syntax')
+  console.log(`Q-243 / D-144 artifact evidence: ${work}`)
+})
+
+// This same observer is serialized into the strict installed probe below. Every invocation
+// is recorded before native I/O; observation never substitutes a value or swallows an exception.
+function createReadObserver(nativeRead, classify) {
+  const reads = []
+  return { reads, read: function(path, ...args) {
+    const attempt = { authorized: false, outcome: 'ATTEMPTED' }
+    reads.push(attempt)
+    try { Object.assign(attempt, classify(path)) }
+    catch { attempt.observationError = 'UNCLASSIFIABLE_PATH' }
+    try {
+      const result = Reflect.apply(nativeRead, this, [path, ...args])
+      attempt.outcome = 'SUCCESS'
+      Object.defineProperty(attempt, 'originalResult', { value: result })
+      return result
+    } catch (error) {
+      attempt.outcome = 'FAILED'
+      Object.defineProperty(attempt, 'originalError', { value: error })
+      attempt.failure = { name: error.name, message: error.message, code: error.code ?? null }
+      throw error
+    }
+  } }
+}
+function assertOwnedReads(reads) {
+  assert.equal(reads.filter(row => !row.authorized || row.outcome === 'ATTEMPTED').length, 0,
+    'all read attempts, including failed native I/O, must belong to the current verified instance: '
+      + JSON.stringify(reads))
+}
+
+test('read observer preserves the real successful return and records owned attempts', () => {
+  const path = join(work, 'observer-own-package.json')
+  writeFileSync(path, '{"name":"observer-own"}')
+  const observer = createReadObserver(readFileSync, path => ({ path: resolve(path), authorized: true }))
+  const value = observer.read(path)
+  assert.ok(Buffer.isBuffer(value))
+  assert.equal(value, observer.reads[0].originalResult, 'return the identical native Buffer')
+  assert.equal(observer.reads[0].outcome, 'SUCCESS')
+  assertOwnedReads(observer.reads)
+})
+test('read observer detects forbidden real ENOENT attempts even when the caller swallows the native error', () => {
+  const allowed = join(work, 'observer-own-package.json')
+  // Each missing path is real filesystem I/O, not an injected exception or a mocked metadata reader.
+  const forbidden = ['host/package.json', 'other-plugin/package.json',
+    'node_modules/hanaworlds-contracts/schema.json', 'arbitrary.txt']
+  const observer = createReadObserver(readFileSync, path => ({ path: resolve(path),
+    authorized: resolve(path) === allowed }))
+  for (const relative of forbidden) {
+    const path = join(work, 'observer-forbidden', relative)
+    let caught
+    try { observer.read(path, 'utf8') } catch (error) { caught = error }
+    const attempt = observer.reads.at(-1)
+    assert.ok(caught)
+    assert.equal(caught, attempt.originalError, 'rethrow the identical native exception')
+    assert.equal(caught.code, 'ENOENT')
+    assert.deepEqual(attempt.failure, { name: caught.name, message: caught.message, code: caught.code })
+    assert.equal(attempt.path, path)
+    assert.equal(attempt.outcome, 'FAILED')
+    assert.equal(attempt.authorized, false)
+  }
+  assert.equal(observer.reads.length, forbidden.length, 'no failed attempt disappears')
+  assert.throws(() => assertOwnedReads(observer.reads), /all read attempts/)
+})
+
+test('read observer also detects a forbidden real permission failure without changing the exception', () => {
+  const path = join(work, 'observer-permission-denied.json')
+  writeFileSync(path, '{}')
+  chmodSync(path, 0)
+  const observer = createReadObserver(readFileSync, path => ({ path: resolve(path), authorized: false }))
+  try {
+    let caught
+    try { observer.read(path, 'utf8') } catch (error) { caught = error }
+    assert.ok(caught, 'the actual native read must fail on the unreadable fixture')
+    const attempt = observer.reads[0]
+    assert.equal(caught, attempt.originalError)
+    assert.equal(caught.code, 'EACCES')
+    assert.equal(attempt.failure.code, caught.code)
+    assert.equal(attempt.outcome, 'FAILED')
+    assert.equal(observer.reads.length, 1)
+    assert.throws(() => assertOwnedReads(observer.reads), /all read attempts/)
+  } finally { chmodSync(path, 0o600) }
 })
 
 test('the normal compiled artifact permits only the validated loaded-instance manifest reader', () => {
@@ -147,7 +232,7 @@ for (const [name, mutate] of mutations) {
 test('the real strictly installed public entry reads only owned manifests and diagnoses missing/bad/unassociated metadata', () => {
   const { attempt } = normalProof()
   const consumer = join(attempt, 'production')
-  writeFileSync(join(consumer, 'plugin-evidence-probe.mjs'), installedProbe)
+  writeFileSync(join(consumer, 'plugin-evidence-probe.mjs'), installedProbe())
   const result = command('installed-evidence', process.execPath, ['plugin-evidence-probe.mjs'], consumer)
   succeeded(result, 'installed-evidence')
   const proof = json(join(consumer, 'plugin-evidence-proof.json'))
@@ -155,14 +240,21 @@ test('the real strictly installed public entry reads only owned manifests and di
   assert.equal(proof.callbackVerified, true)
   assert.equal(proof.healthyVersion, '7.4.2-beta.8')
   assert.equal(proof.unauthorizedReads, 0)
-  assert.ok(proof.reads.every(path => path.endsWith('/package.json')))
-  assert.deepEqual(proof.cases, ['normal', 'unknown-request-path', 'builtin-unassociated',
+  assertOwnedReads(proof.reads)
+  assert.ok(proof.reads.every(row => row.path.endsWith('/package.json') && row.ownerEntryId
+    && row.callbackVerified && row.rootVerified && Number.isInteger(row.fiberUid)
+    && typeof row.instanceRef === 'string' && row.instanceRef.length > 0))
+  assert.ok(proof.reads.some(row => row.phase === 'missing-own-manifest-no-host-fallback'
+    && row.ownerEntryId === 'sample' && row.outcome === 'FAILED' && row.failure.code === 'ENOENT'))
+  assert.deepEqual(proof.cases, ['builtin-unassociated', 'normal', 'unknown-request-path',
     'malformed-manifest', 'missing-version', 'missing-own-manifest-no-host-fallback', 'restored'])
+  assert.deepEqual(proof.httpCases, ['builtin-unassociated', 'normal', 'malformed-manifest',
+    'missing-version', 'missing-own-manifest-no-host-fallback', 'restored'])
 })
 
 // Runs from the actual production consumer after normal pack/postpack's strict install.
 // Only package exports and its resolved official dependencies are used; no source SDK or test helper imports.
-const installedProbe = String.raw`
+function installedProbe() { return String.raw`
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createRequire,syncBuiltinESMExports} from 'node:module';
@@ -171,11 +263,13 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 const bridgeURL=import.meta.resolve('hanaworlds-desktop-bridge');
 const require=createRequire(bridgeURL);
 assert.throws(()=>require.resolve('hanaworlds-contracts'),{code:'MODULE_NOT_FOUND'});
-const {Context}=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')));
+const {Context,FiberState}=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')));
 const {Loader}=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis-plugin-loader')));
 const {SessionStore}=await import(pathToFileURL(require.resolve('@deepseek-ai/dsh-session')));
 const {WebServer}=await import(pathToFileURL(require.resolve('@deepseek-ai/dsh-host-webserver')));
-const ctx=new Context(), fibers=[], reads=[], cases=[];
+${createReadObserver.toString()}
+${assertOwnedReads.toString()}
+const ctx=new Context(), fibers=[], reads=[], cases=[], httpCases=[];
 const protocolData=JSON.parse(fs.readFileSync('probe-data.json','utf8'));
 let peerCalls=0;
 const fixtureRoot=join(process.cwd(),'evidence-fixtures'), own=join(fixtureRoot,'plugin');
@@ -197,50 +291,115 @@ c.provide('hanaworldsCanvasV5',peer);c.provide('hanaworldsWorkshop',peer);
 }};
 await ctx.loader.create({id:'peers',name:'cordis:peers'});
 await ctx.loader.create({id:'bridge',name:bridgeURL});
-await ctx.loader.create({id:'sample',name:pathToFileURL(join(own,'index.js')).href});
 await ctx.loader.await();
 for(const entry of ctx.loader.entries())await entry.fiber?.await();
-const installed=fileURLToPath(bridgeURL);
-const allowed=new Set([resolve(manifestPath),resolve(dirname(installed),'../package.json')]);
-fs.readFileSync=function(path,...args){const result=nativeRead.call(this,path,...args);const absolute=resolve(path instanceof URL?path.pathname:String(path));reads.push(absolute);return result;};
-syncBuiltinESMExports();
-const actualEntry=ctx.loader.resolve('sample'), cache=ctx.loader.internal;
+const installed=fileURLToPath(bridgeURL), cache=ctx.loader.internal;
 assert.ok(cache);
 const moduleURL=pathToFileURL(join(own,'index.js')).href;
-const loadedNamespace=cache.loadCache.get(moduleURL)?.module?.getNamespace();
-assert.ok(loadedNamespace);
-const callbackVerified=ctx.registry.resolve(ctx.loader.unwrapExports(loadedNamespace))===actualEntry.fiber.runtime.callback;
-assert.equal(callbackVerified,true);
-assert.equal(actualEntry.fiber.ctx.root,ctx.root);
+// These roots are independently known from the fixture and the installed archive, never
+// derived from a bridge response or from a basename allowlist. Namespace/instance matching
+// is repeated before every actual read, including an ENOENT attempt.
+const definitions=[{id:'bridge',url:bridgeURL,path:resolve(dirname(installed),'../package.json')},
+  {id:'sample',url:moduleURL,path:resolve(manifestPath)}];
+const scopeFor=definition=>{
+  const entry=ctx.loader.resolve(definition.id);
+  if(!entry || entry.disabled || !entry.fiber)return null;
+  const fiber=entry.fiber, module=cache.loadCache.get(definition.url)?.module;
+  assert.ok(module);assert.equal(module.url,definition.url);
+  const callback=ctx.registry.resolve(ctx.loader.unwrapExports(module.getNamespace()));
+  assert.equal(callback,fiber.runtime.callback);assert.equal(fiber.ctx.root,ctx.root);
+  assert.equal(fiber.entry,entry);
+  assert.ok([FiberState.ACTIVE,FiberState.FAILED].includes(fiber.state));
+  return {...definition,entry,fiber,callback,uid:fiber.uid,state:fiber.state};
+};
 const port=ctx.get('hanaworldsWorldInspectionContext');
-const read=()=>port.ReadPluginEvidence({contractVersion:'world-inspection/v1',requestId:'installed'});
-const row=result=>{assert.equal(result.error,null);const current=result.result.plugins.find(row=>row.entryId==='sample');assert.ok(current);return current;};
-const healthy=row(await read());
+const row=(result,id='sample')=>{
+  assert.equal(result.error,null);
+  const current=result.result.plugins.find(row=>row.entryId===id);assert.ok(current);return current;
+};
+let healthyBridge;
+async function observed(phase,call){
+  const scopes=definitions.map(scopeFor).filter(Boolean);
+  const observer=createReadObserver(nativeRead,path=>{
+    const absolute=typeof path==='string'?resolve(path):path instanceof URL?resolve(fileURLToPath(path)):
+      Buffer.isBuffer(path)?resolve(path.toString()):null;
+    const owner=scopes.find(scope=>scope.path===absolute);
+    const current=owner && ctx.loader.resolve(owner.id);
+    const currentModule=owner && cache.loadCache.get(owner.url)?.module;
+    const callbackVerified=!!owner && currentModule?.url===owner.url
+      && ctx.registry.resolve(ctx.loader.unwrapExports(currentModule.getNamespace()))===owner.callback;
+    const rootVerified=!!owner && owner.fiber.ctx.root===ctx.root;
+    const authorized=!!owner && current===owner.entry && !current.disabled
+      && current.fiber===owner.fiber && owner.fiber.entry===current && owner.uid!==null && owner.fiber.uid===owner.uid && owner.fiber.state===owner.state
+      && callbackVerified && rootVerified;
+    return {path:absolute,phase,authorized,ownerEntryId:owner?.id??null,
+      fiberUid:owner?.uid??null,callbackVerified,rootVerified};
+  });
+  fs.readFileSync=observer.read;syncBuiltinESMExports();
+  try {
+    const result=await call();
+    for(const read of observer.reads)read.instanceRef=result.result?.plugins
+      .find(row=>row.entryId===read.ownerEntryId)?.instanceRef??null;
+    return result;
+  }
+  finally {
+    fs.readFileSync=nativeRead;syncBuiltinESMExports();reads.push(...observer.reads);
+    fs.writeFileSync('plugin-evidence-read-attempts.json',JSON.stringify(reads,null,2));
+    assertOwnedReads(observer.reads);
+  }
+}
+async function check(phase){
+  const direct=await observed(phase,()=>port.ReadPluginEvidence({contractVersion:'world-inspection/v1',requestId:'installed'}));
+  const bridge=row(direct,'bridge');assert.ok(bridge.package);assert.equal(bridge.metadataError,null);
+  if(healthyBridge)assert.deepEqual(bridge.package,healthyBridge.package);else healthyBridge=bridge;
+  const response=await observed(phase+'-http',async()=>{
+    const response=await fetch('http://127.0.0.1:'+ctx.webServer.port+'/api-hanaworlds-plugin-evidence',
+      {headers:{origin:'http://fixture.local',cookie:'fixture=valid'}});
+    assert.equal(response.status,200);return response.json();
+  });
+  assert.deepEqual(row(response,'bridge').package,healthyBridge.package);
+  assert.deepEqual(response.result.plugins,direct.result.plugins);httpCases.push(phase);
+  return direct;
+}
+// Isolate the unassociated builtin before the sample is loaded: only the verified bridge
+// manifest is authorized, so even a swallowed failed sample/host/SDK/arbitrary read is rejected.
+const unassociated=await check('builtin-unassociated'), builtin=row(unassociated,'peers');
+assert.equal(builtin.package,null);assert.equal(builtin.metadataError.code,'METADATA_UNAVAILABLE');
+assert.deepEqual(unassociated.result.plugins.map(row=>row.entryId).sort(),['bridge','peers']);
+cases.push('builtin-unassociated');
+await ctx.loader.create({id:'sample',name:moduleURL});await ctx.loader.await();
+await ctx.loader.resolve('sample').fiber.await();
+const healthy=row(await check('normal'));
 assert.deepEqual(healthy.package,{name:'@fixture/installed-evidence',version:'7.4.2-beta.8'});
 assert.deepEqual(healthy.contributions,{services:['artifactEvidence']});cases.push('normal');
-let count=reads.length;
-await assert.rejects(()=>port.ReadPluginEvidence({contractVersion:'world-inspection/v1',requestId:'bad',path:'/arbitrary/path'}),error=>error.publicError?.code==='UNKNOWN_REQUIRED_FIELD');
+const count=reads.length;
+await assert.rejects(()=>observed('unknown-request-path',()=>port.ReadPluginEvidence({
+  contractVersion:'world-inspection/v1',requestId:'bad',path:'/arbitrary/path'})),
+  error=>error.publicError?.code==='UNKNOWN_REQUIRED_FIELD');
 assert.equal(reads.length,count);cases.push('unknown-request-path');
-const result=await read(), builtin=result.result.plugins.find(row=>row.entryId==='peers');
-assert.equal(builtin.package,null);assert.equal(builtin.metadataError.code,'METADATA_UNAVAILABLE');cases.push('builtin-unassociated');
 fs.writeFileSync(manifestPath,'{broken');
-let current=row(await read());assert.equal(current.package,null);assert.equal(current.metadataError.code,'METADATA_UNAVAILABLE');cases.push('malformed-manifest');
+let current=row(await check('malformed-manifest'));
+assert.equal(current.package,null);assert.equal(current.metadataError.code,'METADATA_UNAVAILABLE');cases.push('malformed-manifest');
 fs.writeFileSync(manifestPath,JSON.stringify({name:'@fixture/installed-evidence',type:'module'}));
-current=row(await read());assert.equal(current.package,null);assert.equal(current.metadataError.code,'METADATA_UNAVAILABLE');cases.push('missing-version');
+current=row(await check('missing-version'));
+assert.equal(current.package,null);assert.equal(current.metadataError.code,'METADATA_UNAVAILABLE');cases.push('missing-version');
 fs.unlinkSync(manifestPath);
-current=row(await read());assert.equal(current.package,null);assert.equal(current.metadataError.code,'METADATA_UNAVAILABLE');cases.push('missing-own-manifest-no-host-fallback');
+current=row(await check('missing-own-manifest-no-host-fallback'));
+assert.equal(current.package,null);assert.equal(current.metadataError.code,'METADATA_UNAVAILABLE');
+assert.ok(reads.some(read=>read.phase==='missing-own-manifest-no-host-fallback' && read.ownerEntryId==='sample'
+  && read.outcome==='FAILED' && read.failure.code==='ENOENT'),'the missing own manifest attempt is visible');
+cases.push('missing-own-manifest-no-host-fallback');
 fs.writeFileSync(manifestPath,original);
-current=row(await read());assert.deepEqual(current.package,healthy.package);assert.equal(current.instanceRef,healthy.instanceRef);cases.push('restored');
-const response=await fetch('http://127.0.0.1:'+ctx.webServer.port+'/api-hanaworlds-plugin-evidence',{headers:{origin:'http://fixture.local',cookie:'fixture=valid'}});
-assert.equal(response.status,200);assert.deepEqual(row(await response.json()).package,healthy.package);
-fs.readFileSync=nativeRead;syncBuiltinESMExports();
-const unauthorizedReads=reads.filter(path=>!allowed.has(path)).length;
-assert.equal(unauthorizedReads,0,'successful file reads must belong to the actual matched loaded modules');
+current=row(await check('restored'));assert.deepEqual(current.package,healthy.package);
+assert.equal(current.instanceRef,healthy.instanceRef);cases.push('restored');
+const callbackVerified=reads.length>0 && reads.every(read=>read.callbackVerified);
+const unauthorizedReads=reads.filter(read=>!read.authorized).length;
+assertOwnedReads(reads);assert.equal(unauthorizedReads,0);
 assert.equal(peerCalls,0,'plugin evidence must not call peer world/session operations');
-fs.writeFileSync('plugin-evidence-proof.json',JSON.stringify({publicEntry:'STRICT_INSTALLED_PACKAGE',callbackVerified,healthyVersion:healthy.package.version,unauthorizedReads,reads,cases},null,2));
+fs.writeFileSync('plugin-evidence-proof.json',JSON.stringify({publicEntry:'STRICT_INSTALLED_PACKAGE',callbackVerified,healthyVersion:healthy.package.version,unauthorizedReads,reads,cases,httpCases},null,2));
 }finally{
 fs.readFileSync=nativeRead;syncBuiltinESMExports();
 const loader=ctx.get('loader');if(loader)for(const entry of [...loader.entries()])await entry.fiber?.dispose();
 for(const fiber of fibers.reverse())await fiber.dispose();
 }
-`;
+`; }
