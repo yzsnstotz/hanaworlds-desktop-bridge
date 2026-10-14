@@ -65,13 +65,13 @@ before(() => {
   writeFileSync(probePath, installedProbe())
   succeeded(command('installed-probe-syntax', process.execPath, ['--check', probePath], work),
     'installed-probe-syntax')
-  console.log(`Q-243 / D-146 artifact evidence: ${work}`)
+  console.log(`Q-257 artifact evidence: ${work}`)
 })
 
 // Serialized unchanged into BOTH preparation and strict business modes. The preparation
 // mode mounts real Loader modules and exercises these exact binding/state/instance checks.
 function verifiedLoadedScope(ctx, cache, definition, states) {
-  const entry = ctx.loader.resolve(definition.id)
+  const entry = [...ctx.loader.entries()].find(entry => entry.id === definition.id)
   if (!entry || entry.disabled || !entry.fiber) return null
   const fiber = entry.fiber, module = cache.loadCache.get(definition.url)?.module
   assert.ok(module); assert.equal(module.url, definition.url)
@@ -90,8 +90,9 @@ test('execution-level probe preparation verifies resolved dependencies and real 
   assert.equal(proof.mode, 'DEVELOPMENT_PREPARATION_ONLY')
   assert.equal(proof.businessReadPerformed, false)
   assert.deepEqual(proof.states, { active: 2, failed: 3 })
-  assert.deepEqual(proof.checks, ['dependencies', 'active-scope', 'failed-scope', 'disabled-revoked', 'new-current-instance'])
+  assert.deepEqual(proof.checks, ['dependencies', 'unloaded-entry-null-no-reads', 'active-scope', 'failed-scope', 'disabled-revoked', 'new-current-instance'])
   assert.ok(Object.values(proof.dependencies).every(path => path.startsWith(source + '/node_modules/')))
+  assert.deepEqual(proof.unloadedEntry, { id: 'sample', exists: false, scope: null, reads: [] })
 })
 test('execution-level preparation exposes the erased-enum binding regression before business pack gates', () => {
   const healthy = command('probe-preparation-control', process.execPath,
@@ -105,6 +106,21 @@ test('execution-level preparation exposes the erased-enum binding regression bef
   assert.equal(rejected.error, undefined)
   assert.equal(rejected.status, 1)
   assert.match(rejected.stderr, /TypeError: Cannot read properties of undefined .*ACTIVE/)
+})
+
+test('execution preparation detects the original missing-entry resolve regression without creating sample', () => {
+  const control = join(source, 'test', 'missing-entry-control.mjs')
+  const code = installedProbe()
+  writeFileSync(control, code)
+  succeeded(command('missing-entry-control', process.execPath, [control, '--preparation-only']), 'missing-entry-control')
+  const lookup = 'const entry = [...ctx.loader.entries()].find(entry => entry.id === definition.id)'
+  assert.ok(code.includes(lookup), 'the regression must reach the same shared scope helper')
+  const broken = join(source, 'test', 'missing-entry-resolve-regression.mjs')
+  writeFileSync(broken, code.replace(lookup, 'const entry = ctx.loader.resolve(definition.id)'))
+  const rejected = command('missing-entry-resolve-regression', process.execPath, [broken, '--preparation-only'])
+  assert.equal(rejected.error, undefined)
+  assert.equal(rejected.status, 1)
+  assert.match(rejected.stderr, /Error: cannot resolve entry sample/)
 })
 
 // This same observer is serialized into the strict installed probe below. Every invocation
@@ -319,6 +335,7 @@ if(preparation){
     '@deepseek-ai/dsh-session','@deepseek-ai/dsh-host-webserver'].map(name=>[name,require.resolve(name)]));
   for(const binding of [Context,Loader,SessionStore,WebServer])assert.equal(typeof binding,'function');
   const checks=['dependencies'], ctx=new Context(), fibers=[];
+  let unloadedEntry;
   const base=fs.mkdtempSync(join(process.cwd(),'probe-preparation-fixtures-'));
   fs.writeFileSync(join(base,'package.json'),JSON.stringify({type:'module'}));
   fs.writeFileSync(join(base,'active.js'),'export function apply(c){c.provide("preparationEvidence",{})}');
@@ -327,9 +344,23 @@ if(preparation){
   const failed={id:'failed',url:pathToFileURL(join(base,'failed.js')).href,path:join(base,'package.json')};
   try{
     fibers.push(await ctx.plugin(Loader,{baseUrl:pathToFileURL(base+'/').href}));
+    const cache=ctx.loader.internal;assert.ok(cache);
+    const missing={...active,id:'sample'};
+    assert.equal([...ctx.loader.entries()].some(entry=>entry.id==='sample'),false);
+    // Prove the real API throws, then exercise the shared enumerable lookup. No sample
+    // entry is created; neither the helper nor its observer swallows the Loader exception.
+    assert.throws(()=>ctx.loader.resolve('sample'),/cannot resolve entry sample/);
+    const nativeRead=fs.readFileSync;
+    const observer=createReadObserver(nativeRead,path=>({path:String(path),authorized:false}));
+    fs.readFileSync=observer.read;syncBuiltinESMExports();
+    try{
+      const scope=verifiedLoadedScope(ctx,cache,missing,FiberState);
+      assert.equal(scope,null);assert.equal(observer.reads.length,0);
+      unloadedEntry={id:'sample',exists:false,scope,reads:observer.reads};
+      checks.push('unloaded-entry-null-no-reads');
+    }finally{fs.readFileSync=nativeRead;syncBuiltinESMExports();}
     await ctx.loader.create({id:active.id,name:active.url});await ctx.loader.await();
     await ctx.loader.resolve('active').fiber.await();
-    const cache=ctx.loader.internal;assert.ok(cache);
     const scope=verifiedLoadedScope(ctx,cache,active,FiberState);
     assert.equal(scope.state,FiberState.ACTIVE);checks.push('active-scope');
     await ctx.loader.create({id:failed.id,name:failed.url});await ctx.loader.await();
@@ -343,7 +374,7 @@ if(preparation){
     assert.notEqual(current.fiber,scope.fiber);assert.notEqual(current.uid,scope.uid);
     assert.equal(current.state,FiberState.ACTIVE);checks.push('new-current-instance');
     fs.writeFileSync('probe-preparation-proof.json',JSON.stringify({mode:'DEVELOPMENT_PREPARATION_ONLY',
-      businessReadPerformed:false,dependencies,states:{active:scope.state,failed:failedScope.state},checks},null,2));
+      businessReadPerformed:false,dependencies,unloadedEntry,states:{active:scope.state,failed:failedScope.state},checks},null,2));
   }finally{
     const loader=ctx.get('loader');if(loader)for(const entry of [...loader.entries()])await entry.fiber?.dispose();
     for(const fiber of fibers.reverse())await fiber.dispose();
