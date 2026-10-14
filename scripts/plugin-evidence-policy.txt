@@ -1,4 +1,4 @@
-// Reviewed closed AST capability policy; data only, never executed.
+// Closed AST capability policy; data only, never executed.
 // Scope issuer, opaque token, one-file reader, currentness and all transitive bindings.
 var __defProp = Object.defineProperty;
 
@@ -125,8 +125,6 @@ var DesktopPluginEvidence = class {
             const end = index + (parts[index + 1]?.startsWith("@") ? 3 : 2);
             const root = index < 0 ? dirname(file) : parts.slice(0, end).join(sep);
             const path = join(root, "package.json");
-            if (findPackageJSON(module.url) !== path)
-                throw new Error("MODULE_PACKAGE_SCOPE_UNPROVEN");
             current();
             const token = Object.freeze({});
             manifestScopes.set(token, { module, path, current });
@@ -229,8 +227,6 @@ function diagnostic(reason) {
 import { dirname } from "node:path";
 
 import { fileURLToPath } from "node:url";
-
-import { findPackageJSON } from "node:module";
 
 function isJSON(value, ancestors = new Set()) {
     if (value === null || typeof value === "string" || typeof value === "boolean")

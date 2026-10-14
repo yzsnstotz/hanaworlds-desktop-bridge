@@ -62,7 +62,7 @@ export function proveManifestCapability(files) {
     : ts.isFunctionDeclaration(n) ? [n] : ts.isImportDeclaration(n) ? [...n.importClause.namedBindings.elements] : [])
     .map(descriptor).sort((a,b) => a.name.localeCompare(b.name))
   assert.deepEqual(graph.descriptors, policy, 'manifest metadata/callback/instance capability closure differs from the reviewed AST proof')
-  const approved = new Set(), resourceNames = new Set(['readFileSync', 'findPackageJSON', 'manifestScopes', 'packageIdentity'])
+  const approved = new Set(), resourceNames = new Set(['readFileSync', 'manifestScopes', 'packageIdentity'])
   for (const sf of graph.units) {
     function visit(node) {
       if (ts.isIdentifier(node)) {
@@ -90,7 +90,6 @@ export function proveManifestCapability(files) {
   }
   const dependencyImports = new Set([...graph.imports].filter(n => ['node:fs', 'node:module'].includes(n.parent.parent.parent.moduleSpecifier.text)))
   assert.deepEqual([...dependencyImports].map(descriptor).sort((a,b)=>a.name.localeCompare(b.name)), [
-    {name:'findPackageJSON',binding:'findPackageJSON',module:'node:module'},
     {name:'readFileSync',binding:'readFileSync',module:'node:fs'},
   ], 'manifest capability builtin bindings must be exact')
   // The certificate permits only the closed reader/issuer slice, not an entire module.

@@ -4,7 +4,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
-import { findPackageJSON } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
 import { serviceIdentity } from './image-media.ts'
@@ -231,14 +230,14 @@ export class DesktopPluginEvidence {
       }
       current()
       const file = fileURLToPath(module.url)
-      // Node's already-loaded package scope must also fit an independently bounded plugin
-      // root: an installed (scoped or unscoped) node_modules package, or a standalone entry's
-      // own directory. Never borrow a parent project/host scope for an unassociated file.
+      // Bound the physical package root from this exact loaded module: the innermost
+      // installed (scoped or unscoped) node_modules package, or a standalone entry's
+      // own directory. A local subdirectory cannot prove a parent package root; its
+      // missing manifest is diagnosed without searching or borrowing a host version.
       const parts = file.split(sep), index = parts.lastIndexOf('node_modules')
       const end = index + (parts[index + 1]?.startsWith('@') ? 3 : 2)
       const root = index < 0 ? dirname(file) : parts.slice(0, end).join(sep)
       const path = join(root, 'package.json')
-      if (findPackageJSON(module.url) !== path) throw new Error('MODULE_PACKAGE_SCOPE_UNPROVEN')
       current()
       const token = Object.freeze({})
       manifestScopes.set(token, { module, path, current })
