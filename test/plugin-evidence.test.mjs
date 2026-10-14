@@ -25,6 +25,16 @@ const wire = 'world-inspection/v1'
 const FiberState = { PENDING: 0, ACTIVE: 2, FAILED: 3 }
 const path = '/api-hanaworlds-plugin-evidence'
 const request = requestId => ({ contractVersion: wire, requestId })
+const faultCases = [
+  { id: 'empty-message', fault: { kind: 'error', name: 'Error', message: '' },
+    expected: { name: 'Error', message: '', code: null } },
+  { id: 'empty-name-and-code', fault: { kind: 'error', name: '', message: 'exact failure', code: '' },
+    expected: { name: '', message: 'exact failure', code: '' } },
+  { id: 'non-error-string', fault: { kind: 'value', value: '  拒绝原文\n未改写  ' },
+    expected: { name: 'NonError', message: '  拒绝原文\n未改写  ', code: null } },
+  { id: 'non-error-object', fault: { kind: 'value', value: { reason: 'protocol rejected', code: '', retry: false } },
+    expected: { name: 'NonError', message: '{"reason":"protocol rejected","code":"","retry":false}', code: null } },
+]
 
 async function setup(t, { withLoader = true } = {}) {
   await mkdir(scratch, { recursive: true })
@@ -47,37 +57,57 @@ async function setup(t, { withLoader = true } = {}) {
     if (req.headers.cookie !== 'fixture-login=valid') return 401
   } })
   const canvas = createViewFixture()
-  ctx.provide('hanaworldsCanvasV5', canvas)
-  ctx.provide('hanaworldsWorkshop', createWorkshopFixture(canvas))
+  const workshop = createWorkshopFixture(canvas)
   ctx.provide('skills', { async snapshot() { return { complete: true, skills: [] } } })
   let bridgeId
   if (withLoader) {
     hostFibers.push(await ctx.plugin(Loader, { baseUrl: pathToFileURL(dir + '/').href }))
+    ctx.loader.builtins['fixture-peers'] = { apply(c) {
+      c.provide('hanaworldsCanvasV5', canvas)
+      c.provide('hanaworldsWorkshop', workshop)
+    } }
+    await ctx.loader.create({ id: 'fixture-peers', name: 'cordis:fixture-peers' })
+    await ctx.loader.await()
     // Public Loader mounts the package entry. No fiber.entry or Fiber.state is manufactured.
     ctx.loader.builtins.bridge = bridge
     bridgeId = await ctx.loader.create({ id: 'bridge', name: 'cordis:bridge' })
     await ctx.loader.await()
     assert.equal(ctx.loader.resolve(bridgeId).fiber.state, FiberState.ACTIVE)
   } else {
+    ctx.provide('hanaworldsCanvasV5', canvas)
+    ctx.provide('hanaworldsWorkshop', workshop)
     hostFibers.push(await ctx.plugin(bridge))
   }
 
   let serial = 0
   async function mount(id, { version = '7.3.1', services = ['evidenceAlpha'], nested = false,
-    fail = false, inject = [] } = {}) {
+    fail = false, fault = null, inject = [] } = {}) {
     const packageDir = join(dir, `package-${++serial}`)
     await mkdir(packageDir)
     await writeFile(join(packageDir, 'package.json'), JSON.stringify({
       name: `@fixture/package-${serial}`, version, type: 'module', exports: './index.js',
     }))
     const provides = services.map(name => `c.provide(${JSON.stringify(name)}, {value:'current'})`).join(';')
+    const failure = fault ?? (fail ? { kind: 'error', name: 'Error',
+      message: 'fixture transport handshake rejected', code: 'E_FIXTURE_HANDSHAKE' } : null)
+    const throws = failure?.kind === 'error'
+      ? `throw Object.assign(new Error(${JSON.stringify(failure.message)}), ${JSON.stringify({
+        name: failure.name, ...Object.hasOwn(failure, 'code') ? { code: failure.code } : {},
+      })})`
+      : null
+    // Config validation rejects before composeError wraps the apply callback. This official
+    // lifecycle path preserves non-Error values; no private error/state fields are assigned.
+    const configValidator = failure?.kind === 'value' ? `export const Config = {
+      '~standard': {version:1,vendor:'fixture',validate(){throw ${JSON.stringify(failure.value)}}}
+    };` : ''
     await writeFile(join(packageDir, 'index.js'), `
       export const name = 'misleading-display-name';
       export const provide = ['declaredButNotRegistered'];
       export const inject = ${JSON.stringify(inject)};
+      ${configValidator}
       export function apply(ctx) {
-        ${fail ? "throw Object.assign(new Error('fixture transport handshake rejected'), {code:'E_FIXTURE_HANDSHAKE'})" :
-          nested ? `ctx.plugin({name:'nested-display',apply(c){${provides}}})` : `const c=ctx;${provides}`}
+        ${throws ?? (
+          nested ? `ctx.plugin({name:'nested-display',apply(c){${provides}}})` : `const c=ctx;${provides}`)}
       }
     `)
     const moduleName = pathToFileURL(join(packageDir, 'index.js')).href
@@ -85,14 +115,17 @@ async function setup(t, { withLoader = true } = {}) {
     await ctx.loader.await()
     const entry = ctx.loader.resolve(id)
     const fiber = entry.fiber
-    if (fail) {
-      await assert.rejects(fiber.await(), /fixture transport handshake rejected/)
+    let rejection
+    if (failure) {
+      let rejected = false
+      try { await fiber.await() } catch (error) { rejected = true; rejection = error }
+      assert.equal(rejected, true, 'the official fiber must reject with the actual thrown value')
       assert.equal(fiber.state, FiberState.FAILED)
     } else {
       await fiber.await()
       assert.equal(fiber.state, FiberState.ACTIVE)
     }
-    return { entry, fiber, moduleName, packageDir, packageName: `@fixture/package-${serial}`, version, services }
+    return { entry, fiber, moduleName, packageDir, packageName: `@fixture/package-${serial}`, version, services, rejection }
   }
   async function direct(raw = request('direct')) {
     const port = ctx.get('hanaworldsWorldInspectionContext')
@@ -100,8 +133,8 @@ async function setup(t, { withLoader = true } = {}) {
       'bridge public inspection service must expose ReadPluginEvidence')
     return port.ReadPluginEvidence(raw)
   }
-  async function read(headers = {}) {
-    const response = await fetch(`http://127.0.0.1:${ctx.webServer.port}${path}`, { headers: {
+  async function read(headers = {}, route = path) {
+    const response = await fetch(`http://127.0.0.1:${ctx.webServer.port}${route}`, { headers: {
       origin: 'http://fixture.local', cookie: 'fixture-login=valid', ...headers,
     } })
     const raw = await response.text()
@@ -264,6 +297,63 @@ test('a real FAILED fiber names its concrete cause, isolates healthy rows and no
   active(next, recovered)
   assert.notEqual(next.instanceRef, row.instanceRef)
 })
+
+for (const scenario of faultCases) {
+  test(`D-133 fixture: actual Loader preserves ${scenario.id} rejection and healthy HTTP/recovery`, async t => {
+    const h = await setup(t)
+    await h.mount('alpha')
+    const healthyService = h.ctx.get('evidenceAlpha')
+    const broken = await h.mount('broken', { fault: scenario.fault })
+    if (scenario.fault.kind === 'error') {
+      assert.ok(broken.rejection instanceof Error)
+      assert.equal(broken.rejection.name, scenario.expected.name)
+      assert.equal(broken.rejection.message, scenario.expected.message)
+      assert.equal(typeof broken.rejection.code === 'string' ? broken.rejection.code : null, scenario.expected.code)
+    } else {
+      assert.deepEqual(broken.rejection, scenario.fault.value)
+      assert.equal(broken.rejection instanceof Error, false)
+    }
+    await assert.rejects(broken.fiber.await(), value => {
+      assert.equal(value, broken.rejection, 'official await preserves the actual rejection identity/value')
+      return true
+    })
+    assert.equal(h.ctx.get('evidenceAlpha'), healthyService)
+    assert.equal((await h.read({}, '/api-hanaworlds-plugin-roles')).status, 200)
+    await broken.fiber.dispose()
+    const recovered = await h.mount('broken', { services: ['recoveredPort'] })
+    assert.equal(recovered.fiber.state, FiberState.ACTIVE)
+    assert.ok(h.ctx.get('recoveredPort'))
+    assert.equal((await h.read({}, '/api-hanaworlds-plugin-roles')).status, 200)
+  })
+
+  test(`D-133 evidence: ${scenario.id} fault stays exact; healthy rows/HTTP/recovery remain usable`, async t => {
+    const h = await setup(t)
+    const healthy = await h.mount('alpha')
+    const broken = await h.mount('broken', { fault: scenario.fault })
+    const result = await h.direct()
+    active(rowFor(result, 'alpha'), healthy)
+    const row = rowFor(result, 'broken')
+    assert.equal(row.state, 'FAILED')
+    assert.deepEqual(row.package, { name: broken.packageName, version: broken.version })
+    assert.deepEqual(row.contributions, { services: [] })
+    assert.deepEqual(row.fault, scenario.expected, 'do not fill empty strings, invent a cause or discard the thrown value')
+    assert.equal(row.metadataError, null)
+    const http = await h.read()
+    assert.equal(http.status, 200)
+    assert.deepEqual(http.data.result, result.result)
+    const roles = await h.ctx.hanaworldsWorldInspectionContext.ReadPluginRoles(request('roles'))
+    assert.equal(roles.error, null)
+    await broken.fiber.dispose()
+    const recovered = await h.mount('broken', { services: ['recoveredPort'] })
+    const next = await h.direct()
+    active(rowFor(next, 'alpha'), healthy)
+    active(rowFor(next, 'broken'), recovered)
+    assert.notEqual(rowFor(next, 'broken').instanceRef, row.instanceRef)
+    const recoveredHTTP = await h.read()
+    assert.equal(recoveredHTTP.status, 200)
+    assert.deepEqual(recoveredHTTP.data.result, next.result)
+  })
+}
 
 test('missing package version is explicit per-row metadata failure; it never borrows another package version', async t => {
   const h = await setup(t)
