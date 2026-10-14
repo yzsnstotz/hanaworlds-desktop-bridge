@@ -115,7 +115,8 @@ test('Cordis entry registers authenticated HTTP routes and releases services and
   validateType('PublicCapabilities', h.ctx.hanaworldsCapabilities)
   assert.ok(h.ctx.hanaworldsPainterLocalFacts)
   assert.ok(h.ctx.hanaworldsWorldInspectionContext)
-  assert.ok(h.ctx.hanaworldsCompilerConfig)
+  assert.equal(h.ctx.get('hanaworldsCompilerConfig'), undefined,
+    'C-canvas owns compiler registration; the bridge must not supply a second provider')
   assert.deepEqual((await h.request('/api-hanaworlds-skill-tools')).data, { tools: [], skills: { skills: [], complete: true } })
   await h.bridgeFiber.dispose()
   assert.equal(h.ctx.get('hanaworldsDesktopBridge'), undefined)
@@ -464,7 +465,7 @@ test('deployment reports the missing world source without manufacturing avatar f
   assert.ok(seams.every((s: any) => !s.compatible && s.unmet.code === 'PEER_UNAVAILABLE'))
 })
 
-test('Cordis deployment HTTP and compiler service relay full source snapshots and undeclared facts', async t => {
+test('Cordis deployment HTTP relays full source snapshots without registering a compiler provider', async t => {
   const h = await setup(t), binding = await h.bind()
   for (const unavailable of [false, true]) {
     const source = createWriteProfileFixture(unavailable)
@@ -477,8 +478,8 @@ test('Cordis deployment HTTP and compiler service relay full source snapshots an
     assert.deepEqual(response.data.writeMethods.value, source.profile.writeMethods)
     assert.deepEqual(response.data.fixed[0].value, JSON.parse(JSON.stringify(source.profile.avatarEnvelope)))
     assert.equal(source.requests.length, 1)
-    if (unavailable) await assert.rejects(h.ctx.hanaworldsCompilerConfig.read('FIXTURE/world/1'), /CAPABILITY_UNAVAILABLE/)
-    else assert.deepEqual(await h.ctx.hanaworldsCompilerConfig.read('FIXTURE/world/1'), source.profile.compilationConfig)
+    assert.equal(h.ctx.get('hanaworldsCompilerConfig'), undefined,
+      'available and unavailable source profiles must not turn the bridge into a compiler provider')
     dispose()
   }
 })
