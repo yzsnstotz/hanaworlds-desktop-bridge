@@ -3,7 +3,8 @@
  */
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
+import { findPackageJSON } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
 import { serviceIdentity } from './image-media.ts'
@@ -129,27 +130,26 @@ function diagnostic(reason: unknown): RuntimeFault {
   return { name: 'NonError', message, code: null }
 }
 
-/** Find the actual module's package scope. A bad nearest manifest never falls back to its parent. */
-function packageIdentity(moduleURL: string): { name: string; version: string } {
-  const url = new URL(moduleURL)
-  if (url.protocol !== 'file:') throw new Error('MODULE_HAS_NO_FILE_PACKAGE')
-  let directory = dirname(fileURLToPath(url))
-  for (;;) {
-    let bytes: string
-    try { bytes = readFileSync(join(directory, 'package.json'), 'utf8') }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new Error('PACKAGE_MANIFEST_UNREADABLE')
-      const parent = dirname(directory)
-      if (parent === directory || directory.endsWith('/node_modules')) throw new Error('MODULE_HAS_NO_PACKAGE')
-      directory = parent
-      continue
-    }
-    let manifest: { name?: unknown; version?: unknown } | null
-    try { manifest = JSON.parse(bytes) } catch { throw new Error('PACKAGE_MANIFEST_INVALID') }
-    if (!manifest || !isRef(manifest.name)) throw new Error('PACKAGE_NAME_MISSING')
-    if (!isRef(manifest.version)) throw new Error('PACKAGE_VERSION_MISSING')
-    return { name: manifest.name, version: manifest.version }
+/** A provenance token is private and cannot be minted by a request or a path string. */
+interface ManifestScope { module: object; path: string; current(): void }
+const manifestScopes = new WeakMap<object, ManifestScope>()
+/** Exactly one already-proven manifest. No ancestor search, fallback, import or cached identity. */
+function packageIdentity(token: object): { name: string; version: string } {
+  const scope = manifestScopes.get(token)
+  if (!scope) throw new Error('MANIFEST_SCOPE_UNVERIFIED')
+  scope.current()
+  let bytes: string
+  try { bytes = readFileSync(scope.path, 'utf8') }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('PACKAGE_MANIFEST_MISSING')
+    throw new Error('PACKAGE_MANIFEST_UNREADABLE')
   }
+  scope.current()
+  let manifest: { name?: unknown; version?: unknown } | null
+  try { manifest = JSON.parse(bytes) } catch { throw new Error('PACKAGE_MANIFEST_INVALID') }
+  if (!manifest || !isRef(manifest.name)) throw new Error('PACKAGE_NAME_MISSING')
+  if (!isRef(manifest.version)) throw new Error('PACKAGE_VERSION_MISSING')
+  return { name: manifest.name, version: manifest.version }
 }
 
 export class DesktopPluginEvidence {
@@ -218,7 +218,32 @@ export class DesktopPluginEvidence {
       if (!module || module.url !== resolved.url) throw new Error('LOADED_MODULE_UNAVAILABLE')
       const callback = this.ctx.registry.resolve(loader.unwrapExports(module.getNamespace()))
       if (!callback || callback !== row.fiber.runtime?.callback) throw new Error('LOADED_CALLBACK_MISMATCH')
-      return { package: packageIdentity(module.url), metadataError: null }
+      const current = () => {
+        if (!this.active() || this.loader() !== loader || loader.ctx.root !== this.ctx.root
+          || ![...loader.entries()].includes(row.entry) || row.entry.disabled
+          || row.entry.fiber !== row.fiber || row.fiber.uid !== row.uid || row.fiber.state !== row.state
+          || row.fiber.ctx.root !== this.ctx.root || (row.fiber as Fiber & { entry?: Entry }).entry !== row.entry
+          || this.identities.get(row.fiber) !== row.instanceRef || loader.internal !== cache
+          || cache.loadCache.get(resolved.url)?.module !== module
+          || this.ctx.registry.resolve(loader.unwrapExports(module.getNamespace())) !== callback) {
+          throw new Error('MANIFEST_INSTANCE_CHANGED')
+        }
+      }
+      current()
+      const file = fileURLToPath(module.url)
+      // Node's already-loaded package scope must also fit an independently bounded plugin
+      // root: an installed (scoped or unscoped) node_modules package, or a standalone entry's
+      // own directory. Never borrow a parent project/host scope for an unassociated file.
+      const parts = file.split(sep), index = parts.lastIndexOf('node_modules')
+      const end = index + (parts[index + 1]?.startsWith('@') ? 3 : 2)
+      const root = index < 0 ? dirname(file) : parts.slice(0, end).join(sep)
+      const path = join(root, 'package.json')
+      if (findPackageJSON(module.url) !== path) throw new Error('MODULE_PACKAGE_SCOPE_UNPROVEN')
+      current()
+      const token = Object.freeze({})
+      manifestScopes.set(token, { module, path, current })
+      try { return { package: packageIdentity(token), metadataError: null } }
+      finally { manifestScopes.delete(token) }
     } catch (error) {
       return { package: null, metadataError: { code: 'METADATA_UNAVAILABLE',
         reason: error instanceof Error && error.message ? error.message : 'PACKAGE_METADATA_UNREADABLE' } }

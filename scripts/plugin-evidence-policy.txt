@@ -1,0 +1,327 @@
+// Reviewed closed AST capability policy; data only, never executed.
+// Scope issuer, opaque token, one-file reader, currentness and all transitive bindings.
+var __defProp = Object.defineProperty;
+
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+
+function decode(raw) {
+    const object = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : null;
+    const id = object && isRef(object.requestId) ? object.requestId : null;
+    const reject = __name((code, reason) => {
+        throw new PluginEvidenceRejection(id, publicError(code, reason));
+    }, "reject");
+    if (!object)
+        reject("SCHEMA_INVALID", "INVALID_REQUEST");
+    if (Reflect.ownKeys(object).some((key) => key !== "contractVersion" && key !== "requestId"))
+        reject("UNKNOWN_REQUIRED_FIELD", "UNKNOWN_FIELD");
+    if (!id || !Object.hasOwn(object, "contractVersion") || !Object.hasOwn(object, "requestId") || typeof object.contractVersion !== "string")
+        reject("SCHEMA_INVALID", "INVALID_REQUEST");
+    if (object.contractVersion !== "world-inspection/v1")
+        reject("PAYLOAD_VERSION_MISMATCH", "UNSUPPORTED_CONTRACT_VERSION");
+    return { contractVersion: "world-inspection/v1", requestId: id };
+}
+
+var DesktopPluginEvidence = class {
+    static {
+        __name(this, "DesktopPluginEvidence");
+    }
+    ctx;
+    identities = new WeakMap();
+    closed = false;
+    bridgeUid;
+    constructor(ctx) {
+        this.ctx = ctx;
+        this.bridgeUid = ctx.fiber.uid;
+        ctx.on("internal/status", (fiber, previous) => {
+            if (fiber.ctx.root === ctx.root && fiber.state !== previous)
+                this.identities.delete(fiber);
+        }, { global: true });
+        ctx.effect(() => () => {
+            this.closed = true;
+        }, "Plugin evidence reader teardown");
+    }
+    active() {
+        return !this.closed && this.ctx.fiber.uid === this.bridgeUid && this.ctx.fiber.state === 2;
+    }
+    loader() {
+        return serviceIdentity(this.ctx.get("loader"));
+    }
+    inventory(loader) {
+        if (loader.ctx.root !== this.ctx.root)
+            throw new Error("LOADER_ROOT_MISMATCH");
+        const entries = [];
+        for (const entry of loader.entries()) {
+            const fiber = entry.fiber;
+            if (entry.options.group || entry.disabled || !fiber || !visible(fiber.state) || fiber.uid === null)
+                continue;
+            if (!isRef(entry.id) || !isRef(entry.options.name) || fiber.ctx.root !== this.ctx.root || fiber.entry !== entry)
+                throw new Error("LOADER_ENTRY_UNVERIFIED");
+            let instanceRef = this.identities.get(fiber);
+            if (!instanceRef) {
+                instanceRef = randomUUID();
+                this.identities.set(fiber, instanceRef);
+            }
+            entries.push({
+                entry,
+                fiber,
+                uid: fiber.uid,
+                state: fiber.state,
+                entryId: entry.id,
+                moduleName: entry.options.name,
+                instanceRef
+            });
+        }
+        entries.sort((a, b) => a.entryId < b.entryId ? -1 : a.entryId > b.entryId ? 1 : 0);
+        if (new Set(entries.map((row) => row.entryId)).size !== entries.length)
+            throw new Error("LOADER_ENTRY_DUPLICATED");
+        return entries;
+    }
+    services() {
+        const store = this.ctx.root.reflect?.store;
+        if (!store || typeof store !== "object")
+            throw new Error("SERVICE_STORE_UNREADABLE");
+        return Object.getOwnPropertySymbols(store).map((key) => {
+            const impl = store[key];
+            if (!impl || !isRef(impl.name) || !impl.fiber)
+                throw new Error("SERVICE_RECORD_UNREADABLE");
+            return [key, impl, impl.value];
+        });
+    }
+    owner(fiber) {
+        const visited = new Set();
+        for (let current = fiber; !visited.has(current); current = current.parent.fiber) {
+            visited.add(current);
+            if (current.state !== 2 || current.ctx.root !== this.ctx.root)
+                return void 0;
+            const entry = current.entry;
+            if (entry)
+                return entry;
+        }
+        return void 0;
+    }
+    metadata(loader, row) {
+        try {
+            if (row.moduleName.startsWith("cordis:"))
+                throw new Error("BUILTIN_HAS_NO_PACKAGE");
+            const cache = loader.internal;
+            if (!cache)
+                throw new Error("LOADED_MODULE_CACHE_UNAVAILABLE");
+            const base = row.entry.parent.tree.ctx.baseUrl;
+            const resolved = cache.version === "v2" ? cache.resolveSync(base, { specifier: row.moduleName }) : cache.resolveSync(row.moduleName, base, {});
+            const module = cache.loadCache.get(resolved.url)?.module;
+            if (!module || module.url !== resolved.url)
+                throw new Error("LOADED_MODULE_UNAVAILABLE");
+            const callback = this.ctx.registry.resolve(loader.unwrapExports(module.getNamespace()));
+            if (!callback || callback !== row.fiber.runtime?.callback)
+                throw new Error("LOADED_CALLBACK_MISMATCH");
+            const current = __name(() => {
+                if (!this.active() || this.loader() !== loader || loader.ctx.root !== this.ctx.root || ![...loader.entries()].includes(row.entry) || row.entry.disabled || row.entry.fiber !== row.fiber || row.fiber.uid !== row.uid || row.fiber.state !== row.state || row.fiber.ctx.root !== this.ctx.root || row.fiber.entry !== row.entry || this.identities.get(row.fiber) !== row.instanceRef || loader.internal !== cache || cache.loadCache.get(resolved.url)?.module !== module || this.ctx.registry.resolve(loader.unwrapExports(module.getNamespace())) !== callback) {
+                    throw new Error("MANIFEST_INSTANCE_CHANGED");
+                }
+            }, "current");
+            current();
+            const file = fileURLToPath(module.url);
+            const parts = file.split(sep), index = parts.lastIndexOf("node_modules");
+            const end = index + (parts[index + 1]?.startsWith("@") ? 3 : 2);
+            const root = index < 0 ? dirname(file) : parts.slice(0, end).join(sep);
+            const path = join(root, "package.json");
+            if (findPackageJSON(module.url) !== path)
+                throw new Error("MODULE_PACKAGE_SCOPE_UNPROVEN");
+            current();
+            const token = Object.freeze({});
+            manifestScopes.set(token, { module, path, current });
+            try {
+                return { package: packageIdentity(token), metadataError: null };
+            }
+            finally {
+                manifestScopes.delete(token);
+            }
+        }
+        catch (error) {
+            return { package: null, metadataError: {
+                    code: "METADATA_UNAVAILABLE",
+                    reason: error instanceof Error && error.message ? error.message : "PACKAGE_METADATA_UNREADABLE"
+                } };
+        }
+    }
+    async ReadPluginEvidence(raw) {
+        const request = decode(raw);
+        if (!this.active())
+            throw new PluginEvidenceRejection(request.requestId, publicError("CAPABILITY_UNAVAILABLE", "BRIDGE_INACTIVE"));
+        const packet = __name((result, error) => ({ ...request, result, error }), "packet");
+        try {
+            const loader = this.loader();
+            if (!loader)
+                throw new Error("LOADER_UNAVAILABLE");
+            const current = this.inventory(loader), registrations = this.services();
+            const check = __name(() => {
+                if (!this.active() || this.loader() !== loader)
+                    throw new Error("BRIDGE_OR_LOADER_CHANGED");
+                const next = this.inventory(loader), services = this.services();
+                if (next.length !== current.length || next.some((row, index) => {
+                    const previous = current[index];
+                    return row.entry !== previous.entry || row.fiber !== previous.fiber || row.uid !== previous.uid || row.state !== previous.state || row.instanceRef !== previous.instanceRef || row.entryId !== previous.entryId || row.moduleName !== previous.moduleName;
+                }))
+                    throw new Error("PLUGIN_INSTANCE_CHANGED");
+                if (services.length !== registrations.length || services.some(([key, impl, value], index) => {
+                    const before = registrations[index];
+                    return key !== before[0] || impl !== before[1] || value !== before[2];
+                }))
+                    throw new Error("SERVICE_REGISTRATION_CHANGED");
+            }, "check");
+            const plugins = [];
+            for (const row of current) {
+                check();
+                const metadata = this.metadata(loader, row);
+                let fault = null;
+                if (row.state === 3) {
+                    let rejected = false, reason;
+                    try {
+                        await row.fiber.await();
+                    }
+                    catch (error) {
+                        rejected = true;
+                        reason = error;
+                    }
+                    check();
+                    if (!rejected)
+                        throw new Error("FAILED_FIBER_REASON_UNAVAILABLE");
+                    fault = diagnostic(reason);
+                }
+                plugins.push({
+                    entryId: row.entryId,
+                    instanceRef: row.instanceRef,
+                    moduleName: row.moduleName,
+                    ...metadata,
+                    state: row.state === 2 ? "ACTIVE" : "FAILED",
+                    fault,
+                    contributions: { services: [...new Set(registrations.filter(([, impl]) => this.owner(impl.fiber) === row.entry).map(([, impl]) => impl.name))].sort() }
+                });
+            }
+            check();
+            return packet({ plugins }, null);
+        }
+        catch (error) {
+            return packet(null, publicError("CAPABILITY_UNAVAILABLE", error instanceof Error && error.message ? error.message : "PLUGIN_EVIDENCE_UNREADABLE"));
+        }
+    }
+};
+
+function diagnostic(reason) {
+    if (reason instanceof Error) {
+        const code = reason.code;
+        return { name: reason.name, message: reason.message, code: typeof code === "string" ? code : null };
+    }
+    let message;
+    if (typeof reason === "string")
+        message = reason;
+    else {
+        try {
+            message = isJSON(reason) ? JSON.stringify(reason) : `UNSERIALIZABLE_REJECTION:${typeof reason}`;
+        }
+        catch {
+            message = `UNSERIALIZABLE_REJECTION:${typeof reason}`;
+        }
+    }
+    return { name: "NonError", message, code: null };
+}
+
+import { dirname } from "node:path";
+
+import { fileURLToPath } from "node:url";
+
+import { findPackageJSON } from "node:module";
+
+function isJSON(value, ancestors = new Set()) {
+    if (value === null || typeof value === "string" || typeof value === "boolean")
+        return true;
+    if (typeof value === "number")
+        return Number.isFinite(value);
+    if (typeof value !== "object" || ancestors.has(value))
+        return false;
+    if (!Array.isArray(value) && ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
+        return false;
+    ancestors.add(value);
+    const keys = Reflect.ownKeys(value);
+    const dataKeys = Array.isArray(value) ? keys.filter((key) => key !== "length") : keys;
+    const valid = (!Array.isArray(value) || dataKeys.length === value.length && dataKeys.every((key, index) => key === String(index))) && dataKeys.every((key) => {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        return typeof key === "string" && descriptor.enumerable && "value" in descriptor && isJSON(descriptor.value, ancestors);
+    });
+    ancestors.delete(value);
+    return valid;
+}
+
+var isRef = __name((value) => typeof value === "string" && value.length > 0, "isRef");
+
+import { join } from "node:path";
+
+var manifestScopes = new WeakMap();
+
+function packageIdentity(token) {
+    const scope = manifestScopes.get(token);
+    if (!scope)
+        throw new Error("MANIFEST_SCOPE_UNVERIFIED");
+    scope.current();
+    let bytes;
+    try {
+        bytes = readFileSync(scope.path, "utf8");
+    }
+    catch (error) {
+        if (error.code === "ENOENT")
+            throw new Error("PACKAGE_MANIFEST_MISSING");
+        throw new Error("PACKAGE_MANIFEST_UNREADABLE");
+    }
+    scope.current();
+    let manifest;
+    try {
+        manifest = JSON.parse(bytes);
+    }
+    catch {
+        throw new Error("PACKAGE_MANIFEST_INVALID");
+    }
+    if (!manifest || !isRef(manifest.name))
+        throw new Error("PACKAGE_NAME_MISSING");
+    if (!isRef(manifest.version))
+        throw new Error("PACKAGE_VERSION_MISSING");
+    return { name: manifest.name, version: manifest.version };
+}
+
+var PluginEvidenceRejection = class extends Error {
+    static {
+        __name(this, "PluginEvidenceRejection");
+    }
+    requestId;
+    publicError;
+    contractVersion = "world-inspection/v1";
+    constructor(requestId, publicError2) {
+        super(publicError2.code);
+        this.requestId = requestId;
+        this.publicError = publicError2;
+        this.name = "PluginEvidenceRejection";
+    }
+};
+
+var publicError = __name((code, reason) => ({
+    code,
+    phase: code === "CAPABILITY_UNAVAILABLE" ? "validate" : "decode",
+    retryability: code === "CAPABILITY_UNAVAILABLE" ? "AFTER_NEW_FACTS" : "NEVER",
+    mutationState: "NONE",
+    transactionRef: null,
+    causeCode: null,
+    reason
+}), "publicError");
+
+import { randomUUID } from "node:crypto";
+
+import { readFileSync } from "node:fs";
+
+import { sep } from "node:path";
+
+function serviceIdentity(service) {
+    return service?.[symbols.original] ?? service;
+}
+
+import { symbols } from "@deepseek-ai/cordis";
+
+var visible = __name((state) => state === 2 || state === 3, "visible");
