@@ -11,6 +11,9 @@ import { DesktopBuildBridge, type DomainPort, type NativeFactsPort } from './bui
 import { DesktopDeploymentPolicy, type CompilerConfigPort, type WriteProfilePort } from './deployment-policy.ts'
 import { DesktopWorldInspectionContext } from './world-inspection-context.ts'
 import { DesktopPluginRoles } from './plugin-roles.ts'
+import { DesktopPluginEvidence } from './plugin-evidence.ts'
+export type { ReadPluginEvidenceRequest, ReadPluginEvidenceResponse, PluginEvidence,
+  RuntimeFault, PluginEvidencePublicError } from './plugin-evidence.ts'
 import { DesktopInspectionFacts } from './inspection-facts.ts'
 import { DesktopPainterFacts } from './painter-facts.ts'
 import { DesktopImageMedia, desktopImageMediaTypes, serviceIdentity } from './image-media.ts'
@@ -43,6 +46,7 @@ declare module '@deepseek-ai/cordis' {
     hanaworldsSafetyProfile: { read(confirmedIntent: unknown): unknown }
     hanaworldsWorldInspectionContext: DesktopWorldInspectionContext & { read(request: unknown): Promise<unknown> }
       & Pick<DesktopPluginRoles, 'ReadPluginRoles'>
+      & Pick<DesktopPluginEvidence, 'ReadPluginEvidence'>
     hanaworldsPainterLocalFacts: DesktopPainterFacts
     hanaworldsCapabilities: import('hanaworlds-contracts').PublicCapabilities
     hanaworldsMediaAuthority: { verify(input: { sessionRef: string; attachmentRef: string }): Promise<boolean> }
@@ -120,8 +124,10 @@ export function apply(ctx: Context): void {
     canvas: () => ctx.get('hanaworldsCanvasV5') })
   // C-world-inspection 2.9.0 ReadPluginRoles rides on the same provider service; it adds no new service.
   const pluginRoles = new DesktopPluginRoles(ctx)
+  const pluginEvidence = new DesktopPluginEvidence(ctx)
   ctx.provide('hanaworldsWorldInspectionContext', Object.assign(inspectionContext, { read: (raw: unknown) => inspection.read(raw),
-    ReadPluginRoles: (raw: unknown) => pluginRoles.ReadPluginRoles(raw) }))
+    ReadPluginRoles: (raw: unknown) => pluginRoles.ReadPluginRoles(raw),
+    ReadPluginEvidence: (raw: unknown) => pluginEvidence.ReadPluginEvidence(raw) }))
   ctx.provide('hanaworldsPainterLocalFacts', new DesktopPainterFacts(transport, id => worlds.localContext(id)))
   ctx.provide('hanaworldsCapabilities', validateType('PublicCapabilities', {
     providerRef: name, capabilityRevision: 'desktop-bridge/v2.0.0', worldRef: null, engineBounds: null,
@@ -163,6 +169,7 @@ export function apply(ctx: Context): void {
   ctx.provide('hanaworldsDesktopBridge', { transport, views, confirmations: confirm, images, deployment: policy, worlds, lifecycle, build })
   installRoutes(ctx, { views, confirm, transport, worlds, lifecycle, policy, build, region: async () => region.status(),
     pluginRoles: () => pluginRoles.ReadPluginRoles({ contractVersion: 'world-inspection/v1', requestId: randomUUID() }),
+    pluginEvidence: () => pluginEvidence.ReadPluginEvidence({ contractVersion: 'world-inspection/v1', requestId: randomUUID() }),
     async tools() {
       const tools = ctx.get('tools'), skills = ctx.get('skills')
       if (!tools) throw new Error('TOOLS_REGISTRY_UNAVAILABLE')

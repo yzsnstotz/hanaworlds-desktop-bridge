@@ -20,6 +20,7 @@ import type { DesktopDeploymentPolicy } from './deployment-policy.ts'
 import type { DesktopBuildBridge } from './build-bridge.ts'
 import type { DesktopBindingView } from './view-binding.ts'
 import { RelayedContractError } from './local-protocol.ts'
+import { PluginEvidenceRejection } from './plugin-evidence.ts'
 
 export const VIEW_PATH = '/api-hanaworlds-view'
 export const WORKSHOP_PATH = '/api-hanaworlds-workshop'
@@ -29,6 +30,7 @@ export const REGION_PATH = '/api-hanaworlds-region'
 export const BUILD_PATH = '/api-hanaworlds-build'
 export const OBJECTS_PATH = '/api-hanaworlds-objects'
 export const PLUGIN_ROLES_PATH = '/api-hanaworlds-plugin-roles'
+export const PLUGIN_EVIDENCE_PATH = '/api-hanaworlds-plugin-evidence'
 /** Request bodies are small JSON objects; anything larger is refused before parsing. */
 const MAX_BODY_BYTES = 64 * 1024
 
@@ -45,10 +47,12 @@ export interface RouteServices {
   tools(): Promise<unknown>
   /** C-world-inspection ReadPluginRoles over the running host. */
   pluginRoles(): Promise<import('hanaworlds-contracts').ReadPluginRolesResponse>
+  pluginEvidence(): Promise<import('./plugin-evidence.ts').ReadPluginEvidenceResponse>
 }
 class RequestError extends Error { constructor(readonly status: number, message: string) { super(message) } }
 /** A peer's whole public Error (code, reason, mutationState, target worldRef …) beside the existing `error` text. */
-const contractError = (error: unknown) => error instanceof RelayedContractError ? { contractError: error.publicError } : {}
+const contractError = (error: unknown) => error instanceof RelayedContractError || error instanceof PluginEvidenceRejection
+  ? { contractError: error.publicError } : {}
 const bad = (message: string): never => { throw new RequestError(400, message) }
 
 function send(res: ServerResponse, status: number, payload: unknown): void {
@@ -298,6 +302,11 @@ export function installRoutes(ctx: Context, services: RouteServices): void {
   route(PLUGIN_ROLES_PATH, { 'GET ': async () => {
     const response = await services.pluginRoles()
     if (response.error) throw new RelayedContractError(response.error)
+    return response
+  } })
+  route(PLUGIN_EVIDENCE_PATH, { 'GET ': async () => {
+    const response = await services.pluginEvidence()
+    if (response.error) throw new PluginEvidenceRejection(response.requestId, response.error)
     return response
   } })
 }
