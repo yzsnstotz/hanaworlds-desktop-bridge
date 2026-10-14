@@ -59,6 +59,9 @@ if (process.argv.includes('--prepack') && process.env.npm_command === 'pack') {
     const canvas = createViewFixture(), workshop = createWorkshopFixture(canvas), sessionRef = fixtureIds[0]
     const selection = (await canvas.call('ReadWorldSelectionContext',{contractVersion:'canvas/v7',requestId:'probe-data',sessionRef,worldRef:canvas.context(sessionRef).worldRef})).result
     writeFileSync(join(consumer,'probe-data.json'),JSON.stringify({handshake:contractHandshake,sessionRef,selection,snapshot:workshop.snapshot(sessionRef),profile:facts.exchanges.find(e=>e.operation==='ReadWriteProfile').response.result,
+      expectedHandoffBuild: { sources: json(join(root,'lib/build-provenance.json')).sources,
+        lockSha256: createHash('sha256').update(readFileSync(join(root,'package-lock.json'))).digest('hex'),
+        tgzSha256: createHash('sha256').update(readFileSync(tgz)).digest('hex') },
       lifecycleDescription:lifecycle.exchanges.find(e=>e.operation==='describe').response.result,
       protocol:{profileVersion:'protocol-handshake/v1',component:'PROBE/peer',protocols:[...contractProtocols].sort((a,b)=>a.protocol < b.protocol ? -1 : a.protocol > b.protocol ? 1 : 0),capabilities:regionCapabilities.map(c=>c.id).sort(),provenance:{packageName:'PROBE/peer',packageVersion:'1.0.0',sourceRevision:null,artifactDigest:null}}}))
     const probe = spawnSync(process.execPath,['probe.mjs'],{cwd:consumer,env:cleanEnv,encoding:'utf8'})
